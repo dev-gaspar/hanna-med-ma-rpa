@@ -91,7 +91,7 @@ class BaptistFlow(BaseFlow):
         return True
 
     def step_2_open_edge(self):
-        """Open Microsoft Edge."""
+        """Open Microsoft Edge with fallback to close windows and show desktop."""
         self.set_step("STEP_2_OPEN_EDGE")
         print("\n[STEP 2] Opening Edge")
 
@@ -100,13 +100,66 @@ class BaptistFlow(BaseFlow):
             timeout=config.get_timeout("edge_open", 300),
             description="Edge icon",
         )
+
+        # Fallback: If Edge icon not found, close all windows and try again
         if not edge_icon:
-            raise Exception("Edge icon not found")
+            print("[STEP 2] Edge icon not found - attempting to close all windows")
+            self._close_all_windows_and_show_desktop()
+
+            # Retry finding Edge icon after showing desktop
+            edge_icon = self.wait_for_element(
+                config.get_rpa_setting("images.edge_icon"),
+                timeout=30,
+                description="Edge icon (retry)",
+            )
+            if not edge_icon:
+                raise Exception("Edge icon not found after closing windows")
 
         edge_center = pyautogui.center(edge_icon)
         pyautogui.doubleClick(edge_center)
         print("[STEP 2] Edge opened")
         return True
+
+    def _close_all_windows_and_show_desktop(self):
+        """Close all open windows using Alt+F4 until desktop is visible."""
+        print("[FALLBACK] Closing all open windows...")
+
+        max_attempts = 10  # Maximum windows to close
+        windows_closed = 0
+
+        for attempt in range(max_attempts):
+            self.check_stop()
+
+            # Check if Edge icon is now visible (means we're at desktop)
+            try:
+                edge_check = pyautogui.locateOnScreen(
+                    config.get_rpa_setting("images.edge_icon"),
+                    confidence=self.confidence,
+                )
+                if edge_check:
+                    print(
+                        f"[FALLBACK] Desktop reached after closing {windows_closed} window(s)"
+                    )
+                    return
+            except Exception:
+                pass  # Image not found, continue closing
+
+            # Close the current window
+            print(f"[FALLBACK] Closing window {attempt + 1}...")
+            pyautogui.hotkey("alt", "F4")
+            windows_closed += 1
+            stoppable_sleep(0.5)
+
+            # Handle dialogs with keyboard shortcuts
+            # Enter: Confirms "Leave" in Chrome/Edge dialogs
+            pyautogui.press("enter")
+            stoppable_sleep(0.3)
+
+            # N: For "No/Don't Save" in Windows native apps (Notepad, etc)
+            pyautogui.press("n")
+            stoppable_sleep(0.3)
+
+        print(f"[FALLBACK] Closed {windows_closed} windows")
 
     def _handler_edge_login(self, location_of_email_field):
         """Handle Edge login page."""
@@ -231,8 +284,10 @@ class BaptistFlow(BaseFlow):
         return True
 
     def _handler_log_on_cerner(self, location):
-        """Click on the 'Log On to Cerner' button."""
-        print("[HANDLER] Clicking on 'Log On to Cerner'")
+        """Click on the 'Log On to Cerner' button with delay to handle auto-redirect."""
+        print("[HANDLER] Waiting before clicking 'Log On to Cerner'...")
+        # Wait 1 second before clicking to handle cases where page auto-redirects
+        stoppable_sleep(1)
         self.safe_click(location, "Log On to Cerner")
         stoppable_sleep(2)
 
