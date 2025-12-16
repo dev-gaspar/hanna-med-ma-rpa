@@ -29,6 +29,10 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "bin/cloudflared.exe"
         shell: pwsh
 
+      - name: Create empty .env file
+        run: New-Item -ItemType File -Path ".env" -Force
+        shell: pwsh
+
       - name: Build executable with PyInstaller
         run: pyinstaller hannamed-rpa.spec
 
