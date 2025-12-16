@@ -25,7 +25,7 @@ jobs:
 
       - name: Download cloudflared
         run: |
-          mkdir -p bin
+          if (!(Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" }
           Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "bin/cloudflared.exe"
         shell: pwsh
 
