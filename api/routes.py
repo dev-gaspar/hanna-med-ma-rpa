@@ -32,6 +32,7 @@ async def get_flow_status():
             "sender": rpa_state["sender"],
             "instance": rpa_state["instance"],
             "trigger_type": rpa_state["trigger_type"],
+            "doctor_name": rpa_state.get("doctor_name"),
         },
     }
 
@@ -49,6 +50,7 @@ async def start_rpa_flow(body: StartRPARequest, background_tasks: BackgroundTask
     print(f"Sender: {body.sender}")
     print(f"Instance: {body.instance}")
     print(f"Trigger Type: {body.trigger_type}")
+    print(f"Doctor Name: {body.doctor_name}")
 
     # Create and run flow in background
     flow = BaptistFlow()
@@ -58,6 +60,8 @@ async def start_rpa_flow(body: StartRPARequest, background_tasks: BackgroundTask
         body.sender,
         body.instance,
         body.trigger_type,
+        body.doctor_name,
+        body.credentials,
     )
 
     return {
@@ -81,6 +85,7 @@ async def start_jackson_rpa_flow(
     print(f"Sender: {body.sender}")
     print(f"Instance: {body.instance}")
     print(f"Trigger Type: {body.trigger_type} (Jackson)")
+    print(f"Doctor Name: {body.doctor_name}")
 
     # Create and run flow in background
     flow = JacksonFlow()
@@ -90,6 +95,8 @@ async def start_jackson_rpa_flow(
         body.sender,
         body.instance,
         body.trigger_type,
+        body.doctor_name,
+        body.credentials,
     )
 
     return {
@@ -113,6 +120,7 @@ async def start_steward_rpa_flow(
     print(f"Sender: {body.sender}")
     print(f"Instance: {body.instance}")
     print(f"Trigger Type: {body.trigger_type} (Steward)")
+    print(f"Doctor Name: {body.doctor_name}")
 
     # Create and run flow in background
     flow = StewardFlow()
@@ -122,6 +130,8 @@ async def start_steward_rpa_flow(
         body.sender,
         body.instance,
         body.trigger_type,
+        body.doctor_name,
+        body.credentials,
     )
 
     return {

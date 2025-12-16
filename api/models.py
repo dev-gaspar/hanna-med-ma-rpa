@@ -2,7 +2,23 @@
 API Models - Pydantic request/response models.
 """
 
+from typing import Optional, List
 from pydantic import BaseModel
+from enum import Enum
+
+
+class SystemKey(str, Enum):
+    """EMR system keys."""
+
+    JACKSON = "JACKSON"
+    STEWARD = "STEWARD"
+
+
+class CredentialItem(BaseModel):
+    """Credential for a specific EMR system."""
+
+    systemKey: SystemKey
+    fields: dict  # {"username": "...", "password": "..."} or {"email": "...", "password": "..."}
 
 
 class StartRPARequest(BaseModel):
@@ -12,6 +28,10 @@ class StartRPARequest(BaseModel):
     sender: str
     instance: str
     trigger_type: str
+    doctor_name: Optional[str] = None
+    credentials: Optional[List[CredentialItem]] = (
+        None  # Array of credentials per system
+    )
 
 
 class StartRPAResponse(BaseModel):

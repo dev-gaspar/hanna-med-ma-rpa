@@ -34,20 +34,58 @@ class BaseFlow(RPABotBase, ABC):
         self.sender = None
         self.instance = None
         self.trigger_type = None
+        self.doctor_name = None
+        self.credentials = []  # List of CredentialItem objects
 
-    def setup(self, execution_id, sender, instance, trigger_type):
+    def setup(
+        self,
+        execution_id,
+        sender,
+        instance,
+        trigger_type,
+        doctor_name=None,
+        credentials=None,
+    ):
         """Setup flow with execution context."""
         self.execution_id = execution_id
         self.sender = sender
         self.instance = instance
         self.trigger_type = trigger_type
+        self.doctor_name = doctor_name
+        self.credentials = credentials or []
 
         # Update global state
         rpa_state["execution_id"] = execution_id
         rpa_state["sender"] = sender
         rpa_state["instance"] = instance
         rpa_state["trigger_type"] = trigger_type
+        rpa_state["doctor_name"] = doctor_name
         rpa_state["status"] = "running"
+
+    def get_credentials_for_system(self, system_key: str) -> dict:
+        """
+        Get credentials fields for a specific system from the credentials array.
+        Returns the fields dict or raises Exception if not found.
+        """
+        for cred in self.credentials:
+            # Handle both dict and Pydantic model
+            if hasattr(cred, "systemKey"):
+                key = (
+                    cred.systemKey.value
+                    if hasattr(cred.systemKey, "value")
+                    else cred.systemKey
+                )
+                fields = cred.fields
+            else:
+                key = cred.get("systemKey", "")
+                fields = cred.get("fields", {})
+
+            if key == system_key:
+                return fields
+
+        raise Exception(
+            f"Credentials for system '{system_key}' not found in webhook payload"
+        )
 
     def teardown(self):
         """Cleanup after flow execution."""
@@ -56,6 +94,7 @@ class BaseFlow(RPABotBase, ABC):
         rpa_state["sender"] = None
         rpa_state["instance"] = None
         rpa_state["trigger_type"] = None
+        rpa_state["doctor_name"] = None
         set_should_stop(False)
         print("[INFO] RPA status: idle")
 
@@ -165,12 +204,22 @@ class BaseFlow(RPABotBase, ABC):
         press_key_vdi("enter")
         logger.info("[LOBBY] Navigating to lobby URL...")
 
-    def run(self, execution_id, sender, instance, trigger_type):
+    def run(
+        self,
+        execution_id,
+        sender,
+        instance,
+        trigger_type,
+        doctor_name=None,
+        credentials=None,
+    ):
         """
         Main entry point - runs the complete flow with error handling.
         """
         set_should_stop(False)
-        self.setup(execution_id, sender, instance, trigger_type)
+        self.setup(
+            execution_id, sender, instance, trigger_type, doctor_name, credentials
+        )
 
         logger.info("=" * 70)
         logger.info(f" STARTING {self.FLOW_NAME.upper()}")
@@ -229,6 +278,7 @@ class BaseFlow(RPABotBase, ABC):
             "sender": self.sender,
             "instance": self.instance,
             "trigger_type": self.trigger_type,
+            "doctor_name": self.doctor_name,
             "screenshot_url": screenshot_url,
         }
         response = self._send_to_n8n(payload)

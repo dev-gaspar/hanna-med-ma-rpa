@@ -22,9 +22,22 @@ class JacksonFlow(BaseFlow):
     def __init__(self):
         super().__init__()
         self.s3_client = get_s3_client()
-        # Hardcoded credentials
-        self.username = "peter.hanna"
-        self.password = "Miababy75"
+
+    @property
+    def username(self):
+        """Get username from Jackson credentials."""
+        creds = self.get_credentials_for_system("JACKSON")
+        if "username" not in creds:
+            raise Exception("Jackson credentials missing 'username' field")
+        return creds["username"]
+
+    @property
+    def password(self):
+        """Get password from Jackson credentials."""
+        creds = self.get_credentials_for_system("JACKSON")
+        if "password" not in creds:
+            raise Exception("Jackson credentials missing 'password' field")
+        return creds["password"]
 
     def execute(self):
         """Execute all Jackson Health flow steps."""
@@ -54,6 +67,7 @@ class JacksonFlow(BaseFlow):
             "sender": self.sender,
             "instance": self.instance,
             "trigger_type": self.trigger_type,
+            "doctor_name": self.doctor_name,
         }
         response = self._send_to_n8n(payload)
         print(f"\n[N8N] Notification sent - Status: {response.status_code}")
@@ -146,7 +160,7 @@ class JacksonFlow(BaseFlow):
         return True
 
     def step_5_password(self):
-        """Enter Password."""
+        """Enter Password using clipboard paste (handles @ and special chars)."""
         self.set_step("STEP_5_PASSWORD")
         print("\n[STEP 5] Entering Password")
 
@@ -163,11 +177,23 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Password Input")
 
         stoppable_sleep(1)
-        # Type @ using Alt Gr + Q for Spanish keyboard
-        pyautogui.hotkey("altright", "q")
-        stoppable_sleep(0.2)
-        # Type rest of password
-        pyautogui.write(self.password)
+
+        # Use clipboard paste to handle @ and special characters properly
+        import pyperclip
+        import pydirectinput
+
+        pyperclip.copy("")
+        stoppable_sleep(0.3)
+        pyperclip.copy(self.password)
+        stoppable_sleep(0.3)
+
+        # Paste with Ctrl+V
+        pydirectinput.keyDown("ctrl")
+        stoppable_sleep(0.1)
+        pydirectinput.press("v")
+        stoppable_sleep(0.1)
+        pydirectinput.keyUp("ctrl")
+
         stoppable_sleep(2)
         print("[STEP 5] Password entered")
         return True

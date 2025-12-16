@@ -27,9 +27,22 @@ class StewardFlow(BaseFlow):
     def __init__(self):
         super().__init__()
         self.s3_client = get_s3_client()
-        # Hardcoded credentials
-        self.email = "peter.hanna@steward.org"
-        self.password = "@Miababy77889911"
+
+    @property
+    def email(self):
+        """Get email from Steward credentials."""
+        creds = self.get_credentials_for_system("STEWARD")
+        if "email" not in creds:
+            raise Exception("Steward credentials missing 'email' field")
+        return creds["email"]
+
+    @property
+    def password(self):
+        """Get password from Steward credentials."""
+        creds = self.get_credentials_for_system("STEWARD")
+        if "password" not in creds:
+            raise Exception("Steward credentials missing 'password' field")
+        return creds["password"]
 
     def execute(self):
         """Execute all Steward Health flow steps."""
@@ -82,6 +95,7 @@ class StewardFlow(BaseFlow):
             "sender": self.sender,
             "instance": self.instance,
             "trigger_type": self.trigger_type,
+            "doctor_name": self.doctor_name,
         }
         response = self._send_to_n8n(payload)
         logger.info(f"[N8N] Notification sent - Status: {response.status_code}")
