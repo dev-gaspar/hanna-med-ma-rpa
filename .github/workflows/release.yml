@@ -1,0 +1,64 @@
+name: Build and Release Installer
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Download cloudflared
+        run: |
+          mkdir -p bin
+          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "bin/cloudflared.exe"
+        shell: pwsh
+
+      - name: Build executable with PyInstaller
+        run: pyinstaller hannamed-rpa.spec
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build installer with NSIS
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer\installer.nsi
+
+      - name: Generate version tag
+        id: version
+        run: |
+          $date = Get-Date -Format "yyyy.MM.dd"
+          $shortSha = "${{ github.sha }}".Substring(0,7)
+          echo "VERSION=v$date-$shortSha" >> $env:GITHUB_OUTPUT
+          echo "DATE=$date" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: Release ${{ steps.version.outputs.DATE }}
+          body: |
+            Instalador automático generado desde el commit `${{ github.sha }}`
+
+            **Cambios:** ${{ github.event.head_commit.message }}
+          files: installer/HannaMed-RPA-Setup.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
