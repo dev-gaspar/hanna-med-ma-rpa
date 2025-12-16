@@ -23,12 +23,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Download cloudflared
-        run: |
-          if (!(Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" }
-          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "bin/cloudflared.exe"
-        shell: pwsh
-
       - name: Create .env file from secrets
         run: |
           @"
