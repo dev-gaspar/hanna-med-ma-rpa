@@ -15,6 +15,7 @@ from core.rpa_engine import RPABotBase, rpa_state, set_should_stop
 from core.system_utils import keep_system_awake, allow_system_sleep
 from core.vdi_input import stoppable_sleep, type_with_clipboard, press_key_vdi
 from logger import logger
+from services.modal_watcher_service import start_modal_watcher, stop_modal_watcher
 
 
 class BaseFlow(RPABotBase, ABC):
@@ -230,6 +231,9 @@ class BaseFlow(RPABotBase, ABC):
 
         keep_system_awake()
 
+        # Start modal watcher to handle unexpected modals during flow execution
+        start_modal_watcher()
+
         # Verify we're on the lobby before starting
         self.verify_lobby()
 
@@ -250,6 +254,8 @@ class BaseFlow(RPABotBase, ABC):
             self.notify_error(str(e))
 
         finally:
+            # Stop modal watcher as flow execution is complete
+            stop_modal_watcher()
             allow_system_sleep()
             self.teardown()
             print("[INFO] System ready for new execution\n")
