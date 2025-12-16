@@ -13,6 +13,7 @@ from tunnel_manager import TunnelManager
 from logger import logger
 from services import AuthService
 from services.lobby_service import start_lobby_service, stop_lobby_service
+from version import __version__, __app_name__
 
 if platform.system() == "Windows":
     import winreg
@@ -145,7 +146,7 @@ class RPAApplication(ctk.CTk):
 
         footer_label = ctk.CTkLabel(
             content_frame,
-            text="Hanna-Med MA RPA v1.1",
+            text=f"{__app_name__} v{__version__}",
             font=ctk.CTkFont(size=11),
             text_color="gray",
         )

@@ -48,21 +48,22 @@ jobs:
         run: |
           & "C:\Program Files (x86)\NSIS\makensis.exe" installer\installer.nsi
 
-      - name: Generate version tag
+      - name: Get version from version.py
         id: version
         run: |
-          $date = Get-Date -Format "yyyy.MM.dd"
-          $shortSha = "${{ github.sha }}".Substring(0,7)
-          echo "VERSION=v$date-$shortSha" >> $env:GITHUB_OUTPUT
-          echo "DATE=$date" >> $env:GITHUB_OUTPUT
+          $version = (Select-String -Path "version.py" -Pattern '__version__\s*=\s*"([^"]+)"').Matches.Groups[1].Value
+          echo "VERSION=v$version" >> $env:GITHUB_OUTPUT
+          echo "Detected version: $version"
         shell: pwsh
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.DATE }}
+          name: HannaMed RPA ${{ steps.version.outputs.VERSION }}
           body: |
+            ## Hanna-Med MA RPA ${{ steps.version.outputs.VERSION }}
+
             Instalador automático generado desde el commit `${{ github.sha }}`
 
             **Cambios:** ${{ github.event.head_commit.message }}
