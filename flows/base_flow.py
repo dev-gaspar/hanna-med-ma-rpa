@@ -27,7 +27,9 @@ class BaseFlow(RPABotBase, ABC):
     # Override in subclasses
     FLOW_NAME = "base"
     FLOW_TYPE = "base_flow"
-    N8N_WEBHOOK_URL = config.get_rpa_setting("n8n_webhook_url")
+    N8N_LIST_WEBHOOK_URL = config.get_rpa_setting("n8n_webhook_url")
+    N8N_ERROR_WEBHOOK_URL = config.get_rpa_setting("n8n_error_webhook_url")
+    N8N_SUMMARY_WEBHOOK_URL = config.get_rpa_setting("n8n_summary_webhook_url")
 
     def __init__(self):
         super().__init__()
@@ -287,8 +289,11 @@ class BaseFlow(RPABotBase, ABC):
             "doctor_name": self.doctor_name,
             "screenshot_url": screenshot_url,
         }
-        response = self._send_to_n8n(payload)
-        print(f"\n[N8N] Error notified - Status: {response.status_code}")
+        # Send to dedicated error webhook instead of main webhook
+        response = requests.post(self.N8N_ERROR_WEBHOOK_URL, json=payload)
+        logger.info(
+            f"[N8N] Error notified to {self.N8N_ERROR_WEBHOOK_URL} - Status: {response.status_code}"
+        )
         return response
 
     def _capture_error_screenshot(self, timestamp):
@@ -309,7 +314,12 @@ class BaseFlow(RPABotBase, ABC):
 
         return screenshot_url
 
-    def _send_to_n8n(self, data):
-        """Send data to the n8n webhook."""
-        response = requests.post(self.N8N_WEBHOOK_URL, json=data)
+    def _send_to_list_webhook_n8n(self, data):
+        """Send data to the n8n list webhook (patient lists)."""
+        response = requests.post(self.N8N_LIST_WEBHOOK_URL, json=data)
+        return response
+
+    def _send_to_summary_webhook_n8n(self, data):
+        """Send data to the n8n summary webhook (patient summaries)."""
+        response = requests.post(self.N8N_SUMMARY_WEBHOOK_URL, json=data)
         return response

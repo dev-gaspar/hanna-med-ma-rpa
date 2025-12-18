@@ -44,14 +44,7 @@ class JacksonSummaryFlow(BaseFlow):
 
     # Webhook URL for the Jackson Summary brain in n8n (for agentic phase)
     JACKSON_SUMMARY_BRAIN_URL = config.get_rpa_setting(
-        "agentic.jackson_summary_brain_url",
-        config.get_rpa_setting("agentic.n8n_agentic_webhook_url"),
-    )
-
-    # Webhook URL for sending completion results (separate from patient list webhook)
-    SUMMARY_WEBHOOK_URL = config.get_rpa_setting(
-        "n8n_summary_webhook_url",
-        "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
+        "agentic.jackson_summary_brain_url"
     )
 
     def __init__(self):
@@ -339,11 +332,9 @@ class JacksonSummaryFlow(BaseFlow):
             "trigger_type": self.trigger_type,
             "doctor_name": self.doctor_name,
         }
-        # Send to dedicated summary webhook instead of patient list webhook
-        response = requests.post(self.SUMMARY_WEBHOOK_URL, json=payload)
-        logger.info(
-            f"[N8N] Summary notification sent to {self.SUMMARY_WEBHOOK_URL} - Status: {response.status_code}"
-        )
+        # Send to dedicated summary webhook using base method
+        response = self._send_to_summary_webhook_n8n(payload)
+        logger.info(f"[N8N] Summary notification sent - Status: {response.status_code}")
         return response
 
     def run(

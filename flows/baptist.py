@@ -57,7 +57,7 @@ class BaptistFlow(BaseFlow):
             "instance": self.instance,
             "trigger_type": self.trigger_type,
         }
-        response = self._send_to_n8n(payload)
+        response = self._send_to_list_webhook_n8n(payload)
         print(f"\n[N8N] Notification sent - Status: {response.status_code}")
 
         print(f"[SUCCESS] Total screenshots: {len(screenshots)}")

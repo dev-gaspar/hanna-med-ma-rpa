@@ -1,5 +1,7 @@
 {
     "n8n_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-data",
+    "n8n_error_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-error",
+    "n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
     "screen_resolution": "1366x768",
     "available_resolutions": [
         "1366x768",
@@ -118,7 +120,6 @@
     },
     "heartbeat_interval_seconds": 300,
     "agentic": {
-        "n8n_agentic_webhook_url": "https://n8n-dev.hannamedma.com/webhook/agentic-brain",
         "jackson_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-jackson-summary",
         "replicate_api_key": "${REPLICATE_API_KEY}",
         "omniparser_model": "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df",
@@ -128,6 +129,5 @@
         "max_steps": 50,
         "step_delay_seconds": 2.0,
         "request_timeout_seconds": 120
-    },
-    "n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary"
+    }
 }

@@ -97,7 +97,7 @@ class StewardFlow(BaseFlow):
             "trigger_type": self.trigger_type,
             "doctor_name": self.doctor_name,
         }
-        response = self._send_to_n8n(payload)
+        response = self._send_to_list_webhook_n8n(payload)
         logger.info(f"[N8N] Notification sent - Status: {response.status_code}")
         logger.info(f"[SUCCESS] PDF URL: {pdf_data['pdf_url']}")
         return response
