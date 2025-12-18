@@ -3,6 +3,7 @@ Agent Runner - Main orchestrator for the agentic RPA.
 Runs the perception-decision-action loop with memory.
 """
 
+import base64
 import time
 import uuid
 from datetime import datetime
@@ -458,8 +459,6 @@ class AgentRunner:
 
     def _upload_screenshot(self, data_url: str) -> Optional[str]:
         """Upload screenshot to S3 for debugging."""
-        import base64
-
         # Extract base64 data from data URL
         if "," in data_url:
             b64_data = data_url.split(",", 1)[1]

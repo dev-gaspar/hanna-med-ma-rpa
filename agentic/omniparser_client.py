@@ -3,10 +3,12 @@ OmniParser Client - Client for Microsoft OmniParser v2 via Replicate API.
 Analyzes screenshots to detect UI elements with bounding boxes.
 """
 
+import json
 import os
 import re
 from typing import List, Optional
 
+import pyautogui
 import replicate
 
 from config import config
@@ -120,8 +122,6 @@ class OmniParserClient:
         Returns:
             ParsedScreen with detected elements
         """
-        import pyautogui
-
         # Get actual screen size if not provided
         if screen_size is None:
             screen_size = pyautogui.size()
@@ -147,8 +147,6 @@ class OmniParserClient:
         Returns:
             ParsedScreen object
         """
-        import pyautogui
-
         if screen_size is None:
             screen_size = pyautogui.size()
 
@@ -267,8 +265,6 @@ class OmniParserClient:
 
             # Fix boolean values
             json_str = json_str.replace("True", "true").replace("False", "false")
-
-            import json
 
             return json.loads(json_str)
         except Exception:

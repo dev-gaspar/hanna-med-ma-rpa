@@ -5,6 +5,8 @@ Jackson Health Flow - Patient list capture for Jackson Health System.
 from datetime import datetime
 
 import pyautogui
+import pydirectinput
+import pyperclip
 
 from config import config
 from core.s3_client import get_s3_client
@@ -179,9 +181,6 @@ class JacksonFlow(BaseFlow):
         stoppable_sleep(1)
 
         # Use clipboard paste to handle @ and special characters properly
-        import pyperclip
-        import pydirectinput
-
         pyperclip.copy("")
         stoppable_sleep(0.3)
         pyperclip.copy(self.password)
