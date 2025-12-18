@@ -5,9 +5,14 @@ API Routes - FastAPI endpoint definitions.
 from fastapi import APIRouter, BackgroundTasks
 
 from core.rpa_engine import rpa_state
-from flows import BaptistFlow, JacksonFlow, StewardFlow
+from flows import BaptistFlow, JacksonFlow, JacksonSummaryFlow, StewardFlow
 
-from .models import StartRPARequest, StartRPAResponse, FlowStatusResponse
+from .models import (
+    StartRPARequest,
+    StartSummaryRequest,
+    StartRPAResponse,
+    FlowStatusResponse,
+)
 
 
 router = APIRouter()
@@ -137,4 +142,48 @@ async def start_steward_rpa_flow(
     return {
         "success": True,
         "message": "Steward list recovery started",
+    }
+
+
+@router.post("/start-jackson-summary-flow", response_model=StartRPAResponse)
+async def start_jackson_summary_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Jackson Patient Summary flow - hybrid RPA + Agentic.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list
+    2. Uses agentic brain to find the patient's Final Report
+    3. Uses traditional RPA to copy content and close everything
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Jackson Summary)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run hybrid flow in background
+    flow = JacksonSummaryFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        body.patient_name,
+    )
+
+    return {
+        "success": True,
+        "message": f"Jackson patient summary flow started for patient: {body.patient_name}",
     }

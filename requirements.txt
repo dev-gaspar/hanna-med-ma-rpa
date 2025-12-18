@@ -12,3 +12,4 @@ customtkinter==5.2.2
 pyperclip==1.8.2
 opencv-python==4.9.0.80
 numpy==1.26.4
+replicate==1.0.4

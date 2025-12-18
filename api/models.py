@@ -34,6 +34,12 @@ class StartRPARequest(BaseModel):
     )
 
 
+class StartSummaryRequest(StartRPARequest):
+    """Request model for starting a patient summary flow."""
+
+    patient_name: str  # Name of the patient to find
+
+
 class StartRPAResponse(BaseModel):
     """Response model for RPA start endpoints."""
 
@@ -47,3 +53,12 @@ class FlowStatusResponse(BaseModel):
     success: bool
     message: str
     data: dict
+
+
+class AgenticTaskResponse(BaseModel):
+    """Response model for agentic task endpoints."""
+
+    success: bool
+    message: str
+    execution_id: Optional[str] = None
+    data: Optional[dict] = None

@@ -1,6 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import copy_metadata
 
 block_cipher = None
+
+# Collect metadata for packages that use importlib.metadata.version()
+replicate_metadata = copy_metadata('replicate')
+httpx_metadata = copy_metadata('httpx')
 
 a = Analysis(
     ['gui.py', 'app.py'],  # Include app.py in analysis for proper import
@@ -21,7 +26,8 @@ a = Analysis(
         ('flows', 'flows'),
         ('api', 'api'),
         ('services', 'services'),
-    ],
+        ('agentic', 'agentic'),  # ⭐ Agentic module for RPA automation
+    ] + replicate_metadata + httpx_metadata,
     hiddenimports=[
         'customtkinter',
         'fastapi',
@@ -46,7 +52,22 @@ a = Analysis(
         'botocore',  # Required by boto3
         'logging',  # VDI logging
         'pathlib',  # Path handling
-        # ⭐ New modules as hidden imports
+        # ⭐ Replicate for OmniParser (agentic)
+        'replicate',
+        'replicate.client',
+        'replicate.__about__',
+        'httpx',
+        'httpx._transports',
+        'httpx._transports.default',
+        'httpcore',
+        # ⭐ Agentic module
+        'agentic',
+        'agentic.agent_runner',
+        'agentic.action_executor',
+        'agentic.omniparser_client',
+        'agentic.screen_capture',
+        'agentic.models',
+        # ⭐ Core modules
         'core',
         'core.rpa_engine',
         'core.system_utils',

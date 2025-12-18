@@ -68,6 +68,7 @@
         "jackson_acknowledge": "images/{resolution}/jackson/acknowledge_btn.png",
         "jackson_announcement_modal": "images/{resolution}/jackson/announcement_modal.png",
         "jackson_announcement_dont_show": "images/{resolution}/jackson/announcement_dont_show.png",
+        "jackson_report_document": "images/{resolution}/jackson/step_report_document.png",
         "jackson_announcement_close": "images/{resolution}/jackson/announcement_close.png",
         "steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
         "steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
@@ -115,5 +116,18 @@
         "host": "0.0.0.0",
         "port": 8000
     },
-    "heartbeat_interval_seconds": 300
+    "heartbeat_interval_seconds": 300,
+    "agentic": {
+        "n8n_agentic_webhook_url": "https://n8n-dev.hannamedma.com/webhook/agentic-brain",
+        "jackson_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-jackson-summary",
+        "replicate_api_key": "${REPLICATE_API_KEY}",
+        "omniparser_model": "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df",
+        "omniparser_imgsz": 1024,
+        "omniparser_box_threshold": 0.05,
+        "omniparser_iou_threshold": 0.1,
+        "max_steps": 50,
+        "step_delay_seconds": 2.0,
+        "request_timeout_seconds": 120
+    },
+    "n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary"
 }
