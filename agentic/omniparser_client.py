@@ -49,11 +49,7 @@ class OmniParserClient:
             iou_threshold: IoU threshold for NMS
         """
         # API Key priority: param > env > config
-        self.api_key = (
-            api_key
-            or os.environ.get("REPLICATE_API_TOKEN")
-            or config.get_rpa_setting("agentic.replicate_api_key")
-        )
+        self.api_key = api_key or config.get_rpa_setting("agentic.replicate_api_key")
 
         if not self.api_key:
             raise ValueError(
