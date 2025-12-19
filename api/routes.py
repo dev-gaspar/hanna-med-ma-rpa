@@ -186,7 +186,7 @@ async def start_jackson_summary_flow(
         body.trigger_type,
         body.doctor_name,
         body.credentials,
-        body.patient_name,
+        patient_name=body.patient_name,
     )
 
     return {
