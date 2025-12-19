@@ -5,7 +5,13 @@ API Routes - FastAPI endpoint definitions.
 from fastapi import APIRouter, BackgroundTasks
 
 from core.rpa_engine import rpa_state
-from flows import BaptistFlow, JacksonFlow, JacksonSummaryFlow, StewardFlow
+from flows import (
+    BaptistFlow,
+    BaptistSummaryFlow,
+    JacksonFlow,
+    JacksonSummaryFlow,
+    StewardFlow,
+)
 
 from .models import (
     StartRPARequest,
@@ -186,4 +192,48 @@ async def start_jackson_summary_flow(
     return {
         "success": True,
         "message": f"Jackson patient summary flow started for patient: {body.patient_name}",
+    }
+
+
+@router.post("/start-baptist-summary-flow", response_model=StartRPAResponse)
+async def start_baptist_summary_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Baptist Patient Summary flow - hybrid RPA + Agentic.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list
+    2. Uses agentic brain to find the patient across hospital tabs
+    3. Uses traditional RPA to close and cleanup
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Baptist Summary)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run hybrid flow in background
+    flow = BaptistSummaryFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        patient_name=body.patient_name,
+    )
+
+    return {
+        "success": True,
+        "message": f"Baptist patient summary flow started for patient: {body.patient_name}",
     }

@@ -4,6 +4,7 @@ Flows module - Hospital-specific RPA flows.
 
 from .base_flow import BaseFlow
 from .baptist import BaptistFlow
+from .baptist_summary import BaptistSummaryFlow
 from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .steward import StewardFlow
@@ -11,6 +12,7 @@ from .steward import StewardFlow
 # Flow registry for dynamic dispatch
 FLOW_REGISTRY = {
     "baptist": BaptistFlow,
+    "baptist_summary": BaptistSummaryFlow,
     "jackson": JacksonFlow,
     "jackson_summary": JacksonSummaryFlow,
     "steward": StewardFlow,
@@ -41,6 +43,7 @@ def get_flow(flow_name: str) -> BaseFlow:
 __all__ = [
     "BaseFlow",
     "BaptistFlow",
+    "BaptistSummaryFlow",
     "JacksonFlow",
     "JacksonSummaryFlow",
     "StewardFlow",

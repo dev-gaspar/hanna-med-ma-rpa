@@ -27,7 +27,7 @@ class BaseFlow(RPABotBase, ABC):
     # Override in subclasses
     FLOW_NAME = "base"
     FLOW_TYPE = "base_flow"
-    N8N_LIST_WEBHOOK_URL = config.get_rpa_setting("n8n_webhook_url")
+    N8N_LIST_WEBHOOK_URL = config.get_rpa_setting("n8n_list_webhook_url")
     N8N_ERROR_WEBHOOK_URL = config.get_rpa_setting("n8n_error_webhook_url")
     N8N_SUMMARY_WEBHOOK_URL = config.get_rpa_setting("n8n_summary_webhook_url")
 
@@ -48,8 +48,12 @@ class BaseFlow(RPABotBase, ABC):
         trigger_type,
         doctor_name=None,
         credentials=None,
+        **kwargs,
     ):
-        """Setup flow with execution context."""
+        """
+        Setup flow with execution context.
+        Subclasses can override to handle additional kwargs (e.g., patient_name).
+        """
         self.execution_id = execution_id
         self.sender = sender
         self.instance = instance
@@ -215,13 +219,21 @@ class BaseFlow(RPABotBase, ABC):
         trigger_type,
         doctor_name=None,
         credentials=None,
+        **kwargs,
     ):
         """
         Main entry point - runs the complete flow with error handling.
+        Accepts **kwargs for flow-specific parameters (e.g., patient_name).
         """
         set_should_stop(False)
         self.setup(
-            execution_id, sender, instance, trigger_type, doctor_name, credentials
+            execution_id,
+            sender,
+            instance,
+            trigger_type,
+            doctor_name,
+            credentials,
+            **kwargs,
         )
 
         logger.info("=" * 70)

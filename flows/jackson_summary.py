@@ -65,10 +65,17 @@ class JacksonSummaryFlow(BaseFlow):
         doctor_name=None,
         credentials=None,
         patient_name=None,
+        **kwargs,
     ):
         """Setup flow with execution context including patient name."""
         super().setup(
-            execution_id, sender, instance, trigger_type, doctor_name, credentials
+            execution_id,
+            sender,
+            instance,
+            trigger_type,
+            doctor_name,
+            credentials,
+            **kwargs,
         )
         self.patient_name = patient_name
 
@@ -336,69 +343,3 @@ class JacksonSummaryFlow(BaseFlow):
         response = self._send_to_summary_webhook_n8n(payload)
         logger.info(f"[N8N] Summary notification sent - Status: {response.status_code}")
         return response
-
-    def run(
-        self,
-        execution_id,
-        sender,
-        instance,
-        trigger_type,
-        doctor_name=None,
-        credentials=None,
-        patient_name=None,
-    ):
-        """
-        Main entry point - runs the complete hybrid flow.
-        Overrides parent to accept patient_name parameter.
-        """
-        from core.rpa_engine import set_should_stop
-        from core.system_utils import keep_system_awake, allow_system_sleep
-        from services.modal_watcher_service import (
-            start_modal_watcher,
-            stop_modal_watcher,
-        )
-
-        set_should_stop(False)
-        self.setup(
-            execution_id,
-            sender,
-            instance,
-            trigger_type,
-            doctor_name,
-            credentials,
-            patient_name,
-        )
-
-        logger.info("=" * 70)
-        logger.info(f" STARTING {self.FLOW_NAME.upper()}")
-        logger.info("=" * 70)
-        logger.info(f"[INFO] Execution ID: {execution_id}")
-        logger.info(f"[INFO] Patient Name: {patient_name}")
-        logger.info(f"[INFO] Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info("=" * 70)
-
-        keep_system_awake()
-        start_modal_watcher()
-        self.verify_lobby()
-
-        try:
-            result = self.execute()
-            self.notify_completion(result)
-
-            print("\n" + "=" * 70)
-            print(f" {self.FLOW_NAME.upper()} COMPLETED SUCCESSFULLY")
-            print("=" * 70 + "\n")
-
-        except KeyboardInterrupt:
-            print(f"\n[STOP] {self.FLOW_NAME} Stopped by User")
-            self.notify_error("RPA stopped by user")
-
-        except Exception as e:
-            print(f"\n[ERROR] {self.FLOW_NAME} Failed: {e}")
-            self.notify_error(str(e))
-
-        finally:
-            stop_modal_watcher()
-            allow_system_sleep()
-            self.teardown()
-            print("[INFO] System ready for new execution\n")

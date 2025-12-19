@@ -77,15 +77,12 @@ class AgentRunner:
             request_timeout: Timeout for n8n requests
             upload_screenshots: Whether to upload screenshots to S3 for debugging
         """
-        # Get n8n URL from config if not provided
-        self.n8n_webhook_url = n8n_webhook_url or config.get_rpa_setting(
-            "agentic.n8n_agentic_webhook_url"
-        )
-
-        if not self.n8n_webhook_url:
+        # Webhook URL must be provided - no fallback
+        if not n8n_webhook_url:
             raise ValueError(
-                "n8n webhook URL not provided. Set in config or pass to constructor."
+                "n8n_webhook_url is required. Pass the brain webhook URL to the constructor."
             )
+        self.n8n_webhook_url = n8n_webhook_url
 
         # Use provided instances or get singletons
         self.omniparser = omniparser_client or get_omniparser_client()
