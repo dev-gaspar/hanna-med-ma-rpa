@@ -57,6 +57,8 @@
         "horizon_menu": "images/{resolution}/baptist/horizon_three_dots.png",
         "horizon_close": "images/{resolution}/baptist/horizon_close_session.png",
         "accept_alert": "images/{resolution}/baptist/accept_alert_button.png",
+        "baptist_report_document": "images/{resolution}/baptist/step_report_document.png",
+        "baptist_print_powerchart": "images/{resolution}/baptist/step_print_powerchart.png",
         "jackson_tab": "images/{resolution}/jackson/step1_tab_jackson.png",
         "jackson_powered": "images/{resolution}/jackson/step2_powered_jackson.png",
         "jackson_open_download": "images/{resolution}/jackson/step3_open_download_powered.png",

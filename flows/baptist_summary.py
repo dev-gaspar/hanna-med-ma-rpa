@@ -4,16 +4,16 @@ Baptist Summary Flow - Hybrid RPA + Agentic flow for patient summary retrieval.
 This flow combines:
 1. Traditional RPA to navigate to the patient list
 2. Agentic brain (n8n) to find the specific patient across hospital tabs
-3. Traditional RPA to close everything
-
-Note: Content is returned as dummy since Baptist VDI doesn't allow clipboard access.
+3. Traditional RPA to print report as PDF and extract text content
 """
 
+import os
 import threading
 from datetime import datetime
 from typing import Optional
 
 import pyautogui
+import pydirectinput
 
 from config import config
 from core.s3_client import get_s3_client
@@ -35,13 +35,15 @@ class BaptistSummaryFlow(BaseFlow):
     1. Phase 1 (RPA): Navigate to patient list using existing Baptist flow steps 1-10
     2. Warmup: Pre-heat OmniParser API for faster agentic execution
     3. Phase 2 (Agentic): Use n8n brain to find patient across hospital tabs and open notes
-    4. Phase 3 (RPA): Close patient detail and cleanup
-
-    Note: Content is returned as dummy since Baptist VDI doesn't allow clipboard access.
+    4. Phase 3 (RPA): Print report to PDF and extract text content
+    5. Phase 4 (RPA): Cleanup - close horizon session and return to start
     """
 
     FLOW_NAME = "Baptist Patient Summary"
     FLOW_TYPE = "baptist_patient_summary"
+
+    # PDF output path on desktop
+    PDF_FILENAME = "baptis report.pdf"
 
     # Webhook URL for the Baptist Summary brain in n8n (for agentic phase)
     BAPTIST_SUMMARY_BRAIN_URL = config.get_rpa_setting(
@@ -117,16 +119,21 @@ class BaptistSummaryFlow(BaseFlow):
         self._phase2_agentic_find_patient()
         logger.info("[BAPTIST SUMMARY] Phase 2: Complete - Patient notes found")
 
-        # Phase 3: Close and cleanup
-        logger.info("[BAPTIST SUMMARY] Phase 3: Closing patient detail and cleanup...")
-        self._phase3_close_and_cleanup()
+        # Phase 3: Print report to PDF and extract content
+        logger.info("[BAPTIST SUMMARY] Phase 3: Extracting report content via PDF...")
+        self._phase3_extract_content_via_pdf()
+        logger.info("[BAPTIST SUMMARY] Phase 3: Complete - Content extracted")
 
-        logger.info("[BAPTIST SUMMARY] Complete")
+        # Phase 4: Cleanup
+        logger.info("[BAPTIST SUMMARY] Phase 4: Cleanup...")
+        self._phase4_cleanup()
+        logger.info("[BAPTIST SUMMARY] Phase 4: Complete")
 
-        # Return dummy content (Baptist VDI doesn't allow clipboard access)
+        logger.info("[BAPTIST SUMMARY] Flow complete")
+
         return {
             "patient_name": self.patient_name,
-            "content": f"[DUMMY CONTENT] Summary for patient: {self.patient_name}. Baptist VDI clipboard not accessible.",
+            "content": self.copied_content or "[ERROR] No content extracted",
         }
 
     def _phase1_navigate_to_patient_list(self):
@@ -228,21 +235,131 @@ HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to 
             f"[BAPTIST SUMMARY] Agentic phase completed in {result.steps_taken} steps"
         )
 
-    def _phase3_close_and_cleanup(self):
+    def _phase3_extract_content_via_pdf(self):
         """
-        Phase 3: Close patient detail and perform standard cleanup.
+        Phase 3: Extract report content by printing to PDF and reading the text.
 
         Flow:
-        1. Close patient detail view with Alt+F4
-        2. Use Baptist cleanup steps (12-15)
+        1. Click on report document to focus
+        2. Click print button in PowerChart
+        3. Enter x2 (confirm print dialog)
+        4. Wait 3 seconds
+        5. Type "baptis report" as filename
+        6. Enter to save
+        7. Left arrow + Enter to confirm overwrite if exists
+        8. Extract text from PDF
         """
-        # Close patient detail window
-        logger.info("[BAPTIST SUMMARY] Closing patient detail with Alt+F4...")
-        pyautogui.hotkey("alt", "f4")
+        self.set_step("PHASE3_EXTRACT_PDF")
+
+        # Step 1: Click on report document to focus
+        logger.info("[BAPTIST SUMMARY] Step 1: Clicking report document...")
+        report_element = self.wait_for_element(
+            config.get_rpa_setting("images.baptist_report_document"),
+            timeout=10,
+            description="Report Document",
+        )
+        if report_element:
+            self.safe_click(report_element, "Report Document")
+        else:
+            logger.warning(
+                "[BAPTIST SUMMARY] Report document image not found, clicking center"
+            )
+            screen_w, screen_h = pyautogui.size()
+            pyautogui.click(screen_w // 2, screen_h // 2)
+        stoppable_sleep(1)
+
+        # Step 2: Click print button
+        logger.info("[BAPTIST SUMMARY] Step 2: Clicking print button...")
+        print_element = self.wait_for_element(
+            config.get_rpa_setting("images.baptist_print_powerchart"),
+            timeout=10,
+            description="Print PowerChart",
+        )
+        if print_element:
+            self.safe_click(print_element, "Print PowerChart")
+        else:
+            raise Exception("Print button not found in PowerChart")
         stoppable_sleep(2)
 
-        # Reuse Baptist cleanup steps
-        self._baptist_flow.step_12_close_powerchart()
+        # Step 3: Enter x2 to confirm print dialogs
+        logger.info("[BAPTIST SUMMARY] Step 3: Confirming print dialogs (Enter x2)...")
+        pydirectinput.press("enter")
+        stoppable_sleep(0.5)
+        pydirectinput.press("enter")
+        stoppable_sleep(4)  # Wait for save dialog
+
+        # Step 5: Type filename
+        logger.info("[BAPTIST SUMMARY] Step 5: Typing filename 'baptis report'...")
+        pydirectinput.typewrite("baptis report", interval=0.05)
+        stoppable_sleep(0.5)
+
+        # Step 6: Enter to save
+        logger.info("[BAPTIST SUMMARY] Step 6: Pressing Enter to save...")
+        pydirectinput.press("enter")
+        stoppable_sleep(1)
+
+        # Step 7: Left arrow + Enter (in case file exists - confirm overwrite)
+        logger.info("[BAPTIST SUMMARY] Step 7: Confirming overwrite if needed...")
+        pydirectinput.press("left")
+        stoppable_sleep(0.3)
+        pydirectinput.press("enter")
+        stoppable_sleep(3)  # Wait for PDF to be saved
+
+        # Step 8: Extract text from PDF
+        logger.info("[BAPTIST SUMMARY] Step 8: Extracting text from PDF...")
+        self._extract_pdf_content()
+
+    def _extract_pdf_content(self):
+        """Extract text content from the saved PDF file."""
+        try:
+            import PyPDF2
+
+            # Build PDF path (on desktop)
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            pdf_path = os.path.join(desktop_path, self.PDF_FILENAME)
+
+            if not os.path.exists(pdf_path):
+                logger.error(f"[BAPTIST SUMMARY] PDF not found at: {pdf_path}")
+                self.copied_content = "[ERROR] PDF file not found on desktop"
+                return
+
+            # Read PDF and extract text
+            with open(pdf_path, "rb") as pdf_file:
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                text_content = []
+
+                for page_num, page in enumerate(pdf_reader.pages):
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content.append(page_text)
+
+                self.copied_content = "\n".join(text_content)
+
+            logger.info(
+                f"[BAPTIST SUMMARY] Extracted {len(self.copied_content)} characters from PDF"
+            )
+
+        except ImportError:
+            logger.error(
+                "[BAPTIST SUMMARY] PyPDF2 not installed - cannot extract PDF content"
+            )
+            self.copied_content = "[ERROR] PyPDF2 library not available"
+        except Exception as e:
+            logger.error(f"[BAPTIST SUMMARY] Error extracting PDF content: {e}")
+            self.copied_content = f"[ERROR] Failed to extract PDF: {e}"
+
+    def _phase4_cleanup(self):
+        """
+        Phase 4: Close horizon session and return to start.
+
+        Flow:
+        1. Close horizon session (3 dots menu -> close session)
+        2. Accept alert
+        3. Return to start screen
+        """
+        self.set_step("PHASE4_CLEANUP")
+
+        # Use Baptist cleanup steps (skip step_12_close_powerchart as we're already closed from PDF print)
         self._baptist_flow.step_13_close_horizon()
         self._baptist_flow.step_14_accept_alert()
         self._baptist_flow.step_15_return_to_start()
