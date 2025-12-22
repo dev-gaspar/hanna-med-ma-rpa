@@ -286,22 +286,49 @@ HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to 
         pydirectinput.press("enter")
         stoppable_sleep(0.5)
         pydirectinput.press("enter")
-        stoppable_sleep(4)  # Wait for save dialog
+        stoppable_sleep(4)  # Wait for save dialog to appear
 
-        # Step 5: Type filename
-        logger.info("[BAPTIST SUMMARY] Step 5: Typing filename 'baptis report'...")
-        pydirectinput.typewrite("baptis report", interval=0.05)
-        stoppable_sleep(0.5)
+        # Step 4: Ctrl+Alt to exit VDI focus (save dialog is on local machine)
+        logger.info("[BAPTIST SUMMARY] Step 4: Exiting VDI focus with Ctrl+Alt...")
+        pydirectinput.keyDown("ctrl")
+        pydirectinput.keyDown("alt")
+        pydirectinput.keyUp("alt")
+        pydirectinput.keyUp("ctrl")
+        stoppable_sleep(1)
 
-        # Step 6: Enter to save
-        logger.info("[BAPTIST SUMMARY] Step 6: Pressing Enter to save...")
+        # Step 5: Click on existing PDF file to select it for replacement
+        logger.info("[BAPTIST SUMMARY] Step 5: Clicking on existing PDF file...")
+        pdf_file_element = self.wait_for_element(
+            config.get_rpa_setting("images.baptist_report_pdf"),
+            timeout=10,
+            description="Baptist Report PDF file",
+        )
+        if pdf_file_element:
+            self.safe_click(pdf_file_element, "Baptist Report PDF file")
+        else:
+            logger.warning(
+                "[BAPTIST SUMMARY] PDF file image not found, continuing anyway..."
+            )
+        stoppable_sleep(1)
+
+        # Step 6: Press Enter to confirm file selection
+        logger.info(
+            "[BAPTIST SUMMARY] Step 6: Pressing Enter to confirm file selection..."
+        )
         pydirectinput.press("enter")
         stoppable_sleep(1)
 
-        # Step 7: Left arrow + Enter (in case file exists - confirm overwrite)
-        logger.info("[BAPTIST SUMMARY] Step 7: Confirming overwrite if needed...")
+        # Step 7: Left arrow to select 'Replace' option
+        logger.info(
+            "[BAPTIST SUMMARY] Step 7: Pressing Left arrow to select Replace..."
+        )
         pydirectinput.press("left")
         stoppable_sleep(0.3)
+
+        # Step 8: Enter to confirm replacement
+        logger.info(
+            "[BAPTIST SUMMARY] Step 8: Pressing Enter to confirm replacement..."
+        )
         pydirectinput.press("enter")
         stoppable_sleep(3)  # Wait for PDF to be saved
 
