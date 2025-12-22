@@ -342,7 +342,11 @@ class StewardFlow(BaseFlow):
         logger.info("[STEP 5] Existing session terminated")
 
     def _handle_sign_list_popup(self, location):
-        """Handler to close the Sign List popup that appears when there are pending documents."""
+        """Handler to close the Sign List popup that appears when there are pending documents.
+
+        Also handles the Warning modal that may appear after closing Sign List,
+        clicking 'Leave Now' button if it appears.
+        """
         logger.info("[SIGN LIST] Sign List popup detected - closing it...")
 
         # Close the popup using steward_close_meditech
@@ -354,13 +358,44 @@ class StewardFlow(BaseFlow):
         if close_btn:
             self.safe_click(close_btn, "Close Sign List")
             stoppable_sleep(2)
-            logger.info("[SIGN LIST] Sign List popup closed successfully")
+            logger.info("[SIGN LIST] Sign List popup closed")
+
+            # Check if Warning modal appeared after closing Sign List
+            self._handle_warning_leave_now_modal()
+
+    def _handle_warning_leave_now_modal(self):
+        """Handle the Warning modal that may appear after closing Sign List.
+
+        This modal has a 'Leave Now' button that needs to be clicked to dismiss it.
+        """
+        logger.info("[SIGN LIST] Checking for Warning modal...")
+
+        leave_now_btn = self.wait_for_element(
+            config.get_rpa_setting("images.steward_leave_now_btn"),
+            timeout=5,
+            description="Leave Now Button",
+        )
+
+        if leave_now_btn:
+            logger.info("[SIGN LIST] Warning modal detected - clicking Leave Now...")
+            self.safe_click(leave_now_btn, "Leave Now")
+            stoppable_sleep(2)
+            logger.info("[SIGN LIST] Warning modal dismissed successfully")
+        else:
+            logger.info("[SIGN LIST] No Warning modal detected - continuing")
 
     def _get_sign_list_handlers(self):
-        """Get handlers for Sign List popup obstacle."""
+        """Get handlers for Sign List popup obstacle.
+
+        Includes both Sign List image variants to maximize detection.
+        """
         return {
             config.get_rpa_setting("images.steward_sign_list"): (
                 "Sign List Popup",
+                self._handle_sign_list_popup,
+            ),
+            config.get_rpa_setting("images.steward_sign_list_obstacle"): (
+                "Sign List Obstacle",
                 self._handle_sign_list_popup,
             ),
         }

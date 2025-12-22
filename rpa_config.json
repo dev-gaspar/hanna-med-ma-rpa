@@ -98,7 +98,9 @@
         "steward_save_pdf_dropdown": "images/{resolution}/steward/save_pdf_dropdown.png",
         "steward_horizon_printer_option": "images/{resolution}/steward/horizon_printer_option.png",
         "steward_print_btn": "images/{resolution}/steward/print_btn.png",
-        "steward_sign_list": "images/{resolution}/steward/sign_list_popup.png"
+        "steward_sign_list": "images/{resolution}/steward/sign_list_popup.png",
+        "steward_sign_list_obstacle": "images/{resolution}/steward/sign_list_obstacle.png",
+        "steward_leave_now_btn": "images/{resolution}/steward/leave_now_btn.png"
     },
     "timeouts": {
         "default": 60,
