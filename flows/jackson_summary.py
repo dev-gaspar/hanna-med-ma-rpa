@@ -24,6 +24,7 @@ from logger import logger
 from .base_flow import BaseFlow
 from .jackson import JacksonFlow
 from agentic import AgentRunner
+from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
 from agentic.screen_capturer import get_screen_capturer
 
@@ -113,7 +114,21 @@ class JacksonSummaryFlow(BaseFlow):
         logger.info(
             f"[JACKSON SUMMARY] Phase 2: Starting agentic search for '{self.patient_name}'..."
         )
-        self._phase2_agentic_find_report()
+        patient_found = self._phase2_agentic_find_report()
+
+        # Handle patient not found
+        if not patient_found:
+            logger.warning(
+                f"[JACKSON SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
+            )
+            self._cleanup_and_return_to_lobby()
+            return {
+                "patient_name": self.patient_name,
+                "content": None,
+                "patient_found": False,
+                "error": f"Patient '{self.patient_name}' not found in patient list",
+            }
+
         logger.info("[JACKSON SUMMARY] Phase 2: Complete - Report found")
 
         # Phase 3: Traditional RPA - Click report, copy content and close
@@ -131,6 +146,7 @@ class JacksonSummaryFlow(BaseFlow):
         return {
             "patient_name": self.patient_name,
             "content": self.copied_content,
+            "patient_found": True,
         }
 
     def _phase1_navigate_to_patient_list(self):
@@ -175,10 +191,13 @@ class JacksonSummaryFlow(BaseFlow):
             logger.warning(f"[JACKSON SUMMARY] OmniParser warmup failed: {e}")
             # Continue anyway - not critical
 
-    def _phase2_agentic_find_report(self):
+    def _phase2_agentic_find_report(self) -> bool:
         """
         Phase 2: Use the agentic brain to find and open the patient's Final Report.
         The n8n brain controls the navigation until it signals 'finish'.
+
+        Returns:
+            True if patient was found, False if not found.
         """
         self.set_step("PHASE2_AGENTIC_FIND_REPORT")
 
@@ -187,7 +206,8 @@ class JacksonSummaryFlow(BaseFlow):
             f"Find and open the Final Report for patient '{self.patient_name}'. "
             f"Navigate through the patient list, search for the patient name, "
             f"click on their record, and open the Final Report tab. "
-            f"Signal 'finish' when the Final Report content is visible."
+            f"Signal 'finish' when the Final Report content is visible. "
+            f"Signal 'patient_not_found' if you cannot locate the patient after searching."
         )
 
         # Create and run the agent with the Jackson Summary brain
@@ -199,7 +219,15 @@ class JacksonSummaryFlow(BaseFlow):
 
         result = runner.run(goal=goal)
 
-        if result.status.value != "finished":
+        # Check if patient was not found
+        if result.status == AgentStatus.PATIENT_NOT_FOUND:
+            logger.warning(
+                f"[JACKSON SUMMARY] Agent signaled patient not found: {result.error}"
+            )
+            return False
+
+        # Check for other failures
+        if result.status != AgentStatus.FINISHED:
             raise Exception(
                 f"Agentic phase failed: {result.error or 'Agent did not find the report'}"
             )
@@ -208,6 +236,21 @@ class JacksonSummaryFlow(BaseFlow):
 
         # Give time for the report content to fully render
         stoppable_sleep(2)
+        return True
+
+    def _cleanup_and_return_to_lobby(self):
+        """
+        Cleanup Jackson EMR session and return to lobby when patient not found.
+        Reuses the close and cleanup logic from phase 3.
+        """
+        logger.info("[JACKSON SUMMARY] Performing cleanup after patient not found...")
+        try:
+            self._phase3_close_and_cleanup()
+        except Exception as e:
+            logger.warning(f"[JACKSON SUMMARY] Cleanup error (continuing): {e}")
+
+        # Verify we're back at the lobby
+        self.verify_lobby()
 
     def _phase3_click_report_document(self):
         """
@@ -326,13 +369,16 @@ class JacksonSummaryFlow(BaseFlow):
         self._jackson_flow.step_11_vdi_tab()
 
     def notify_completion(self, result):
-        """Notify n8n of successful completion with the copied content."""
+        """Notify n8n of completion with the copied content or patient-not-found status."""
+        patient_found = result.get("patient_found", True)
         payload = {
             "execution_id": self.execution_id,
-            "status": "completed",
+            "status": "completed" if patient_found else "patient_not_found",
             "type": self.FLOW_TYPE,
             "patient_name": result.get("patient_name"),
             "content": result.get("content"),
+            "patient_found": patient_found,
+            "error": result.get("error"),
             "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
             "sender": self.sender,
             "instance": self.instance,

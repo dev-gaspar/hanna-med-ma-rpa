@@ -40,6 +40,7 @@ class AgentStatus(str, Enum):
     FINISHED = "finished"
     ERROR = "error"
     STOPPED = "stopped"
+    PATIENT_NOT_FOUND = "patient_not_found"
 
 
 class UIElement(BaseModel):

@@ -23,6 +23,7 @@ from logger import logger
 from .base_flow import BaseFlow
 from .baptist import BaptistFlow
 from agentic import AgentRunner
+from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
 from agentic.screen_capturer import get_screen_capturer
 
@@ -116,7 +117,21 @@ class BaptistSummaryFlow(BaseFlow):
         logger.info(
             f"[BAPTIST SUMMARY] Phase 2: Starting agentic search for '{self.patient_name}'..."
         )
-        self._phase2_agentic_find_patient()
+        patient_found = self._phase2_agentic_find_patient()
+
+        # Handle patient not found
+        if not patient_found:
+            logger.warning(
+                f"[BAPTIST SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
+            )
+            self._cleanup_and_return_to_lobby()
+            return {
+                "patient_name": self.patient_name,
+                "content": None,
+                "patient_found": False,
+                "error": f"Patient '{self.patient_name}' not found in patient list",
+            }
+
         logger.info("[BAPTIST SUMMARY] Phase 2: Complete - Patient notes found")
 
         # Phase 3: Print report to PDF and extract content
@@ -134,6 +149,7 @@ class BaptistSummaryFlow(BaseFlow):
         return {
             "patient_name": self.patient_name,
             "content": self.copied_content or "[ERROR] No content extracted",
+            "patient_found": True,
         }
 
     def _phase1_navigate_to_patient_list(self):
@@ -187,10 +203,13 @@ class BaptistSummaryFlow(BaseFlow):
         except Exception as e:
             logger.warning(f"[BAPTIST SUMMARY] Warmup failed (non-critical): {e}")
 
-    def _phase2_agentic_find_patient(self):
+    def _phase2_agentic_find_patient(self) -> bool:
         """
         Phase 2: Use the agentic brain to find the patient across hospital tabs.
         The n8n brain controls the navigation until it signals 'finish'.
+
+        Returns:
+            True if patient was found, False if not found.
         """
         if not self.BAPTIST_SUMMARY_BRAIN_URL:
             raise ValueError(
@@ -209,6 +228,7 @@ INSTRUCTIONS:
 5. Once you find the patient, click on their row to select them
 6. Open their clinical notes/documents
 7. Signal 'finish' when the patient's notes are visible
+8. If you have checked ALL 4 hospital tabs and cannot find the patient, signal 'patient_not_found'
 
 HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to switch between hospitals.
 """
@@ -228,12 +248,35 @@ HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to 
 
         result = runner.run(goal)
 
-        if result.status.value == "error":
+        # Check if patient was not found
+        if result.status == AgentStatus.PATIENT_NOT_FOUND:
+            logger.warning(
+                f"[BAPTIST SUMMARY] Agent signaled patient not found: {result.error}"
+            )
+            return False
+
+        # Check for errors
+        if result.status == AgentStatus.ERROR:
             raise Exception(f"Agentic phase failed: {result.error}")
 
         logger.info(
             f"[BAPTIST SUMMARY] Agentic phase completed in {result.steps_taken} steps"
         )
+        return True
+
+    def _cleanup_and_return_to_lobby(self):
+        """
+        Cleanup Baptist EMR session and return to lobby when patient not found.
+        Reuses the phase4 cleanup logic.
+        """
+        logger.info("[BAPTIST SUMMARY] Performing cleanup after patient not found...")
+        try:
+            self._phase4_cleanup()
+        except Exception as e:
+            logger.warning(f"[BAPTIST SUMMARY] Cleanup error (continuing): {e}")
+
+        # Verify we're back at the lobby
+        self.verify_lobby()
 
     def _phase3_extract_content_via_pdf(self):
         """
@@ -394,13 +437,16 @@ HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to 
         logger.info("[BAPTIST SUMMARY] Cleanup complete")
 
     def notify_completion(self, result):
-        """Notify n8n of successful completion with the content."""
+        """Notify n8n of completion with the content or patient-not-found status."""
+        patient_found = result.get("patient_found", True)
         payload = {
             "execution_id": self.execution_id,
-            "status": "completed",
+            "status": "completed" if patient_found else "patient_not_found",
             "type": self.FLOW_TYPE,
             "patient_name": result.get("patient_name"),
             "content": result.get("content"),
+            "patient_found": patient_found,
+            "error": result.get("error"),
             "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
             "sender": self.sender,
             "instance": self.instance,

@@ -222,6 +222,25 @@ class AgentRunner:
                     self.history.append(step)
                     break
 
+                # 5b. Check if patient not found
+                if response.status == AgentStatus.PATIENT_NOT_FOUND:
+                    logger.info("[AGENT] Brain signaled PATIENT_NOT_FOUND")
+                    result.status = AgentStatus.PATIENT_NOT_FOUND
+                    result.error = (
+                        response.reasoning or "Patient not found in the patient list"
+                    )
+
+                    # Record step
+                    step = AgentStep(
+                        step_number=self.current_step,
+                        action=response.action,
+                        target_id=response.target_id,
+                        reasoning=response.reasoning,
+                        success=False,
+                    )
+                    self.history.append(step)
+                    break
+
                 # 6. Execute action(s) - BATCH MODE or SINGLE MODE
                 if (
                     response.batch
