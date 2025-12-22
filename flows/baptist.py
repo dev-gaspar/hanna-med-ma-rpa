@@ -37,7 +37,6 @@ class BaptistFlow(BaseFlow):
         self.step_9_click_powerchart()
         self.step_10_wait_powerchart_open()
         screenshots = self.step_11_capture_patient_lists()
-        self.step_12_close_powerchart()
         self.step_13_close_horizon()
         self.step_14_accept_alert()
         self.step_15_return_to_start()
@@ -90,8 +89,8 @@ class BaptistFlow(BaseFlow):
         print("[STEP 1] VDI Desktop started")
         return True
 
-    def step_2_open_edge(self):
-        """Open Microsoft Edge with fallback to close windows and show desktop."""
+    def step_2_open_edge(self, is_retry: bool = False):
+        """Open Microsoft Edge with robust fallback including full flow restart."""
         self.set_step("STEP_2_OPEN_EDGE")
         print("\n[STEP 2] Opening Edge")
 
@@ -101,24 +100,101 @@ class BaptistFlow(BaseFlow):
             description="Edge icon",
         )
 
-        # Fallback: If Edge icon not found, close all windows and try again
+        # Fallback Level 1: Click center of screen and Alt+F4 to close windows
         if not edge_icon:
-            print("[STEP 2] Edge icon not found - attempting to close all windows")
-            self._close_all_windows_and_show_desktop()
-
-            # Retry finding Edge icon after showing desktop
-            edge_icon = self.wait_for_element(
-                config.get_rpa_setting("images.edge_icon"),
-                timeout=30,
-                description="Edge icon (retry)",
+            print(
+                "[STEP 2] Edge icon not found - Fallback Level 1: clicking center and Alt+F4"
             )
-            if not edge_icon:
-                raise Exception("Edge icon not found after closing windows")
+            edge_icon = self._fallback_click_center_and_close_windows()
+
+        # Fallback Level 2: Full cleanup and restart from step 1
+        if not edge_icon:
+            if is_retry:
+                # Already retried once, fail now
+                raise Exception("Edge icon not found after full flow restart")
+
+            print(
+                "[STEP 2] Edge still not found - Fallback Level 2: full cleanup and restart"
+            )
+            self._fallback_full_cleanup_and_restart()
+            return  # The restart will continue the flow
 
         edge_center = pyautogui.center(edge_icon)
         pyautogui.doubleClick(edge_center)
         print("[STEP 2] Edge opened")
         return True
+
+    def _fallback_click_center_and_close_windows(self):
+        """
+        Fallback Level 1: Click center of screen multiple times and use Alt+F4
+        to close any blocking windows until Edge icon is visible.
+        """
+        print("[FALLBACK L1] Clicking center of screen and closing windows...")
+        screen_w, screen_h = pyautogui.size()
+        center_x, center_y = screen_w // 2, screen_h // 2
+
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            self.check_stop()
+
+            # Click center of screen to ensure focus
+            print(f"[FALLBACK L1] Attempt {attempt + 1}: clicking center of screen")
+            pyautogui.click(center_x, center_y)
+            stoppable_sleep(0.3)
+            pyautogui.click(center_x, center_y)
+            stoppable_sleep(0.3)
+
+            # Close current window with Alt+F4
+            print(f"[FALLBACK L1] Pressing Alt+F4...")
+            pyautogui.hotkey("alt", "F4")
+            stoppable_sleep(0.5)
+
+            # Press Enter to confirm any dialogs
+            pyautogui.press("enter")
+            stoppable_sleep(0.3)
+
+            # Check if Edge icon is now visible
+            try:
+                edge_check = pyautogui.locateOnScreen(
+                    config.get_rpa_setting("images.edge_icon"),
+                    confidence=self.confidence,
+                )
+                if edge_check:
+                    print(
+                        f"[FALLBACK L1] Edge icon found after {attempt + 1} attempt(s)"
+                    )
+                    return edge_check
+            except Exception:
+                pass  # Image not found, continue
+
+        print("[FALLBACK L1] Edge icon still not found after all attempts")
+        return None
+
+    def _fallback_full_cleanup_and_restart(self):
+        """
+        Fallback Level 2: Close Horizon session completely and restart from step 1.
+        This is the last resort before failing the flow.
+        """
+        print("[FALLBACK L2] Performing full cleanup and flow restart...")
+
+        try:
+            # Close Horizon session
+            self.step_13_close_horizon()
+        except Exception as e:
+            print(f"[FALLBACK L2] Error closing Horizon (continuing): {e}")
+
+        try:
+            # Accept any alerts
+            self.step_14_accept_alert()
+        except Exception as e:
+            print(f"[FALLBACK L2] Error accepting alert (continuing): {e}")
+
+        stoppable_sleep(2)
+
+        # Restart from step 1
+        print("[FALLBACK L2] Restarting flow from step 1...")
+        self.step_1_open_vdi_desktop()
+        self.step_2_open_edge(is_retry=True)  # Mark as retry to prevent infinite loop
 
     def _close_all_windows_and_show_desktop(self):
         """Close all open windows using Alt+F4 until desktop is visible."""
