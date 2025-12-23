@@ -4,7 +4,12 @@ API Routes - FastAPI endpoint definitions.
 
 from fastapi import APIRouter, BackgroundTasks
 
-from core.rpa_engine import rpa_state
+from core.rpa_engine import (
+    rpa_state,
+    enqueue_request,
+    dequeue_request,
+    get_queue_status,
+)
 from flows import (
     BaptistFlow,
     BaptistSummaryFlow,
@@ -18,7 +23,13 @@ from .models import (
     StartSummaryRequest,
     StartRPAResponse,
     FlowStatusResponse,
+    QueueRPARequest,
+    QueueRPAResponse,
+    QueueStatusResponse,
+    HospitalType,
 )
+
+from logger import logger
 
 
 router = APIRouter()
@@ -237,3 +248,101 @@ async def start_baptist_summary_flow(
         "success": True,
         "message": f"Baptist patient summary flow started for patient: {body.patient_name}",
     }
+
+
+# ============================================================================
+# Queue Endpoints for Batch Processing
+# ============================================================================
+
+
+def get_flow_for_hospital(hospital_type: str):
+    """Get the appropriate flow class for a hospital type."""
+    flows_map = {
+        "JACKSON": JacksonFlow,
+        "STEWARD": StewardFlow,
+        "BAPTIST": BaptistFlow,
+    }
+    flow_class = flows_map.get(hospital_type.upper())
+    if not flow_class:
+        raise ValueError(f"Unknown hospital type: {hospital_type}")
+    return flow_class()
+
+
+def process_queue():
+    """
+    Process queued requests sequentially.
+    This function runs in a background task and processes each request one by one.
+    """
+    import time
+
+    logger.info("[QUEUE] Starting queue processor")
+
+    while True:
+        request = dequeue_request()
+        if not request:
+            logger.info("[QUEUE] No more requests, queue empty")
+            break
+
+        hospital_type = request.get("hospital_type", "UNKNOWN")
+        logger.info(f"[QUEUE] Processing next: {hospital_type}")
+
+        try:
+            flow = get_flow_for_hospital(hospital_type)
+            flow.run(
+                request["execution_id"],
+                request["sender"],
+                request["instance"],
+                request["trigger_type"],
+                request["doctor_name"],
+                request.get("credentials"),
+            )
+        except Exception as e:
+            logger.error(f"[QUEUE] Error processing {hospital_type}: {str(e)}")
+
+        # Small pause between flows to let the VDI stabilize
+        time.sleep(2)
+
+    logger.info("[QUEUE] Queue processor finished")
+
+
+@router.post("/queue-rpa-flow", response_model=QueueRPAResponse)
+async def queue_rpa_flow(body: QueueRPARequest, background_tasks: BackgroundTasks):
+    """
+    Queue an RPA flow for execution.
+
+    This endpoint adds the request to a queue and processes it when the RPA is available.
+    Used for batch operations where multiple hospitals need to be processed sequentially.
+    """
+    request_data = {
+        "hospital_type": body.hospital_type.value,
+        "execution_id": body.execution_id,
+        "sender": body.sender,
+        "instance": body.instance,
+        "trigger_type": body.trigger_type,
+        "doctor_name": body.doctor_name,
+        "credentials": body.credentials,
+        "batch_id": body.batch_id,
+    }
+
+    position = enqueue_request(request_data)
+    logger.info(
+        f"[QUEUE] Request queued: {body.hospital_type.value} at position {position}"
+    )
+
+    # If RPA is idle, start processing the queue
+    if rpa_state["status"] == "idle":
+        logger.info("[QUEUE] RPA is idle, starting queue processor")
+        background_tasks.add_task(process_queue)
+
+    return {
+        "success": True,
+        "message": f"Request for {body.hospital_type.value} queued at position {position}",
+        "queue_position": position,
+    }
+
+
+@router.get("/queue-status", response_model=QueueStatusResponse)
+async def get_queue_status_endpoint():
+    """Get the current status of the request queue."""
+    status = get_queue_status()
+    return status

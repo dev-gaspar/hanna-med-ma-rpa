@@ -4,6 +4,7 @@ Provides foundational methods for all RPA flows.
 """
 
 import time
+import threading
 import pyautogui
 
 from config import config
@@ -19,6 +20,64 @@ rpa_state = {
     "instance": None,
     "trigger_type": None,
 }
+
+# --- Queue System for Batch Processing ---
+rpa_queue: list = []  # List of pending requests
+rpa_queue_lock = threading.Lock()  # Thread safety for queue operations
+
+
+def enqueue_request(request_data: dict) -> int:
+    """
+    Add a request to the queue.
+
+    Args:
+        request_data: Dict with hospital_type, execution_id, sender, etc.
+
+    Returns:
+        Position in queue (1-indexed)
+    """
+    with rpa_queue_lock:
+        rpa_queue.append(request_data)
+        return len(rpa_queue)
+
+
+def dequeue_request() -> dict | None:
+    """
+    Get the next request from the queue.
+
+    Returns:
+        Request dict or None if queue is empty
+    """
+    with rpa_queue_lock:
+        return rpa_queue.pop(0) if rpa_queue else None
+
+
+def get_queue_status() -> dict:
+    """
+    Get current queue status.
+
+    Returns:
+        Dict with pending count, current status, and queued hospitals
+    """
+    with rpa_queue_lock:
+        return {
+            "pending": len(rpa_queue),
+            "current_status": rpa_state["status"],
+            "queue": [r.get("hospital_type") for r in rpa_queue],
+        }
+
+
+def clear_queue() -> int:
+    """
+    Clear all pending requests from the queue.
+
+    Returns:
+        Number of cleared requests
+    """
+    with rpa_queue_lock:
+        count = len(rpa_queue)
+        rpa_queue.clear()
+        return count
 
 
 def set_should_stop(value: bool):

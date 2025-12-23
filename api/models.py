@@ -62,3 +62,40 @@ class AgenticTaskResponse(BaseModel):
     message: str
     execution_id: Optional[str] = None
     data: Optional[dict] = None
+
+
+class HospitalType(str, Enum):
+    """Hospital type for queue requests."""
+
+    JACKSON = "JACKSON"
+    STEWARD = "STEWARD"
+    BAPTIST = "BAPTIST"
+
+
+class QueueRPARequest(BaseModel):
+    """Request model for queueing an RPA flow."""
+
+    execution_id: str
+    sender: str
+    instance: str
+    trigger_type: str
+    doctor_name: Optional[str] = None
+    hospital_type: HospitalType  # Required: which hospital to run
+    credentials: Optional[List[CredentialItem]] = None
+    batch_id: Optional[str] = None  # To group batch requests together
+
+
+class QueueRPAResponse(BaseModel):
+    """Response model for queue endpoints."""
+
+    success: bool
+    message: str
+    queue_position: Optional[int] = None
+
+
+class QueueStatusResponse(BaseModel):
+    """Response model for queue status endpoint."""
+
+    pending: int
+    current_status: str
+    queue: List[str]
