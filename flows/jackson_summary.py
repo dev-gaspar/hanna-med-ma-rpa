@@ -241,11 +241,29 @@ class JacksonSummaryFlow(BaseFlow):
     def _cleanup_and_return_to_lobby(self):
         """
         Cleanup Jackson EMR session and return to lobby when patient not found.
-        Reuses the close and cleanup logic from phase 3.
+        Only performs one close action since no patient detail was opened.
         """
         logger.info("[JACKSON SUMMARY] Performing cleanup after patient not found...")
         try:
-            self._phase3_close_and_cleanup()
+            # Click on screen center to ensure window has focus
+            screen_w, screen_h = pyautogui.size()
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            # Only one close needed: Close the patient list/Jackson main window with Alt+F4
+            logger.info("[JACKSON SUMMARY] Sending Alt+F4 to close Jackson...")
+            pydirectinput.keyDown("alt")
+            stoppable_sleep(0.1)
+            pydirectinput.press("f4")
+            stoppable_sleep(0.1)
+            pydirectinput.keyUp("alt")
+
+            # Wait for the window to close
+            stoppable_sleep(3)
+
+            # Navigate to VDI desktop
+            self._jackson_flow.step_11_vdi_tab()
+
         except Exception as e:
             logger.warning(f"[JACKSON SUMMARY] Cleanup error (continuing): {e}")
 
