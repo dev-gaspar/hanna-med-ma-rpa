@@ -75,6 +75,7 @@
         "jackson_announcement_dont_show": "images/{resolution}/jackson/announcement_dont_show.png",
         "jackson_report_document": "images/{resolution}/jackson/step_report_document.png",
         "jackson_announcement_close": "images/{resolution}/jackson/announcement_close.png",
+        "jackson_info_modal": "images/{resolution}/jackson/info_modal.png",
         "steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
         "steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
         "steward_meditech": "images/{resolution}/steward/step3_meditech.png",

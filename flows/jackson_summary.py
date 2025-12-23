@@ -163,6 +163,10 @@ class JacksonSummaryFlow(BaseFlow):
         self._jackson_flow.step_4_username()
         self._jackson_flow.step_5_password()
         self._jackson_flow.step_6_login_ok()
+
+        # Handle info modal that may appear after login (press Enter to dismiss)
+        self._handle_info_modal_after_login()
+
         self._jackson_flow.step_7_patient_list()
         self._jackson_flow.step_8_hospital_tab()
 
@@ -237,6 +241,29 @@ class JacksonSummaryFlow(BaseFlow):
         # Give time for the report content to fully render
         stoppable_sleep(2)
         return True
+
+    def _handle_info_modal_after_login(self):
+        """
+        Handle info modal that may appear after Jackson login.
+        If detected, press Enter to dismiss it.
+        """
+        logger.info("[JACKSON SUMMARY] Checking for info modal after login...")
+
+        # Quick check for the info modal (short timeout since it may not appear)
+        info_modal = self.wait_for_element(
+            config.get_rpa_setting("images.jackson_info_modal"),
+            timeout=3,
+            description="Info Modal",
+        )
+
+        if info_modal:
+            logger.info(
+                "[JACKSON SUMMARY] Info modal detected - pressing Enter to dismiss"
+            )
+            pydirectinput.press("enter")
+            stoppable_sleep(2)
+        else:
+            logger.info("[JACKSON SUMMARY] No info modal detected, continuing...")
 
     def _cleanup_and_return_to_lobby(self):
         """
