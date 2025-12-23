@@ -251,6 +251,13 @@ class JacksonFlow(BaseFlow):
                 self.safe_click(close_btn, "Close Announcement")
                 stoppable_sleep(2)
 
+        # Define handler for the info modal that may appear after login
+        def handle_info_modal(location):
+            """Handler to dismiss info modal by pressing Enter."""
+            print("[STEP 7] Info modal detected - pressing Enter to dismiss")
+            pydirectinput.press("enter")
+            stoppable_sleep(2)
+
         # Use robust_wait_for_element to handle modals if they appear
         handlers = {
             config.get_rpa_setting("images.jackson_acknowledge"): (
@@ -260,6 +267,10 @@ class JacksonFlow(BaseFlow):
             config.get_rpa_setting("images.jackson_announcement_modal"): (
                 "Announcement Modal",
                 handle_announcement_modal,
+            ),
+            config.get_rpa_setting("images.jackson_info_modal"): (
+                "Info Modal (Enter)",
+                handle_info_modal,
             ),
         }
 
