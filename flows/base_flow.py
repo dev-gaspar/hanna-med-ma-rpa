@@ -225,6 +225,9 @@ class BaseFlow(RPABotBase, ABC):
         Main entry point - runs the complete flow with error handling.
         Accepts **kwargs for flow-specific parameters (e.g., patient_name).
         """
+        logger.info(f"[FLOW] >>> run() started for {self.FLOW_NAME}")
+        logger.info(f"[FLOW] kwargs: {kwargs}")
+
         set_should_stop(False)
         self.setup(
             execution_id,

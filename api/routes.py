@@ -27,7 +27,9 @@ from .models import (
     QueueRPAResponse,
     QueueStatusResponse,
     HospitalType,
+    BatchSummaryRequest,
 )
+from flows.batch_summary_registry import get_batch_summary_flow, is_hospital_supported
 
 from logger import logger
 
@@ -346,3 +348,64 @@ async def get_queue_status_endpoint():
     """Get the current status of the request queue."""
     status = get_queue_status()
     return status
+
+
+@router.post("/start-batch-summary-flow", response_model=StartRPAResponse)
+async def start_batch_summary_flow(
+    body: BatchSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start a batch patient summary flow.
+
+    Processes multiple patients from the same hospital in one session,
+    returning consolidated results.
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    hospital = body.hospital_type.value
+
+    if not is_hospital_supported(hospital):
+        return {
+            "success": False,
+            "message": f"Batch summary not supported for: {hospital}. Supported: JACKSON, BAPTIST",
+        }
+
+    logger.info(
+        f"[BATCH-SUMMARY] Starting for {len(body.patient_names)} patients at {hospital}"
+    )
+    logger.info(f"[BATCH-SUMMARY] Patients: {body.patient_names}")
+
+    # Get the appropriate batch summary flow
+    flow = get_batch_summary_flow(hospital)
+    logger.info(f"[BATCH-SUMMARY] Flow instance obtained: {flow.__class__.__name__}")
+
+    # Convert credentials if present
+    credentials = None
+    if body.credentials:
+        credentials = [c.model_dump() for c in body.credentials]
+
+    logger.info(f"[BATCH-SUMMARY] Adding flow.run to background tasks...")
+
+    # Run in background
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        credentials,
+        patient_names=body.patient_names,
+        hospital_type=hospital,
+    )
+
+    logger.info(f"[BATCH-SUMMARY] Background task queued, returning response")
+
+    return {
+        "success": True,
+        "message": f"Batch summary started for {len(body.patient_names)} patients at {hospital}",
+    }

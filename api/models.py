@@ -99,3 +99,16 @@ class QueueStatusResponse(BaseModel):
     pending: int
     current_status: str
     queue: List[str]
+
+
+class BatchSummaryRequest(BaseModel):
+    """Request model for batch patient summary flow."""
+
+    execution_id: str
+    sender: str
+    instance: str
+    trigger_type: str
+    doctor_name: Optional[str] = None
+    hospital_type: HospitalType  # JACKSON or BAPTIST (extensible)
+    patient_names: List[str]  # Array of patient names to search
+    credentials: Optional[List[CredentialItem]] = None
