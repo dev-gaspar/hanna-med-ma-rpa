@@ -6,8 +6,10 @@ Analyzes screenshots to detect UI elements with bounding boxes.
 import json
 import os
 import re
+import time
 from typing import List, Optional
 
+import httpx
 import pyautogui
 import replicate
 
@@ -29,6 +31,12 @@ class OmniParserClient:
     DEFAULT_IMGSZ = 1024
     DEFAULT_BOX_THRESHOLD = 0.05
     DEFAULT_IOU_THRESHOLD = 0.1
+
+    # Retry configuration for API calls
+    MAX_RETRIES = 3
+    RETRY_DELAY_SECONDS = 5
+    # Extended timeout: 5 minutes for read, 30s for connect
+    API_TIMEOUT = httpx.Timeout(300.0, connect=30.0)
 
     def __init__(
         self,
@@ -73,6 +81,14 @@ class OmniParserClient:
             "agentic.omniparser_iou_threshold", self.DEFAULT_IOU_THRESHOLD
         )
 
+        # Retry settings from config (with defaults)
+        self.max_retries = config.get_rpa_setting(
+            "agentic.omniparser_max_retries", self.MAX_RETRIES
+        )
+        self.retry_delay = config.get_rpa_setting(
+            "agentic.omniparser_retry_delay", self.RETRY_DELAY_SECONDS
+        )
+
         logger.info(f"[OMNIPARSER] Initialized with model: {self.model[:50]}...")
 
     def parse_image(
@@ -80,6 +96,7 @@ class OmniParserClient:
     ) -> ParsedScreen:
         """
         Parse an image and detect UI elements.
+        Includes automatic retry logic for timeout errors.
 
         Args:
             image_data_url: Image as data URL (data:image/png;base64,...)
@@ -87,26 +104,57 @@ class OmniParserClient:
 
         Returns:
             ParsedScreen with detected elements
+
+        Raises:
+            Exception: If all retry attempts fail
         """
-        logger.info("[OMNIPARSER] Sending image for analysis...")
+        last_error = None
 
-        try:
-            output = replicate.run(
-                self.model,
-                input={
-                    "image": image_data_url,
-                    "imgsz": self.imgsz,
-                    "box_threshold": self.box_threshold,
-                    "iou_threshold": self.iou_threshold,
-                },
-            )
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(
+                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} - Sending image for analysis..."
+                )
 
-            logger.info("[OMNIPARSER] Analysis complete, parsing response...")
-            return self._parse_response(output, screen_size)
+                output = replicate.run(
+                    self.model,
+                    input={
+                        "image": image_data_url,
+                        "imgsz": self.imgsz,
+                        "box_threshold": self.box_threshold,
+                        "iou_threshold": self.iou_threshold,
+                    },
+                )
 
-        except Exception as e:
-            logger.error(f"[OMNIPARSER] API error: {e}")
-            raise
+                logger.info("[OMNIPARSER] Analysis complete, parsing response...")
+                return self._parse_response(output, screen_size)
+
+            except (
+                httpx.ReadTimeout,
+                httpx.TimeoutException,
+                httpx.ConnectTimeout,
+            ) as e:
+                last_error = e
+                logger.warning(
+                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} timeout: {e}"
+                )
+
+                if attempt < self.max_retries:
+                    logger.info(
+                        f"[OMNIPARSER] Retrying in {self.retry_delay} seconds..."
+                    )
+                    time.sleep(self.retry_delay)
+
+            except Exception as e:
+                # For non-timeout errors, log and re-raise immediately
+                logger.error(f"[OMNIPARSER] API error (non-timeout): {e}")
+                raise
+
+        # All retries exhausted
+        logger.error(
+            f"[OMNIPARSER] All {self.max_retries} attempts failed. Last error: {last_error}"
+        )
+        raise last_error
 
     def parse_screen(self, screen_size: tuple = None) -> ParsedScreen:
         """
