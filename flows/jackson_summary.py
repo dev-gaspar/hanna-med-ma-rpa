@@ -110,6 +110,10 @@ class JacksonSummaryFlow(BaseFlow):
             warmup_thread.join(timeout=60)  # Max 60 seconds
         logger.info("[JACKSON SUMMARY] OmniParser ready")
 
+        # Click fullscreen for better visualization
+        logger.info("[JACKSON SUMMARY] Entering fullscreen mode...")
+        self._click_fullscreen()
+
         # Phase 2: Agentic - Find the patient's Final Report
         logger.info(
             f"[JACKSON SUMMARY] Phase 2: Starting agentic search for '{self.patient_name}'..."
@@ -121,6 +125,8 @@ class JacksonSummaryFlow(BaseFlow):
             logger.warning(
                 f"[JACKSON SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
             )
+            # Exit fullscreen before cleanup
+            self._click_normalscreen()
             self._cleanup_and_return_to_lobby()
             return {
                 "patient_name": self.patient_name,
@@ -130,6 +136,14 @@ class JacksonSummaryFlow(BaseFlow):
             }
 
         logger.info("[JACKSON SUMMARY] Phase 2: Complete - Report found")
+
+        # Exit fullscreen before copying content
+        logger.info("[JACKSON SUMMARY] Exiting fullscreen mode...")
+        self._click_normalscreen()
+
+        # Wait for screen to settle
+        logger.info("[JACKSON SUMMARY] Waiting for screen to settle...")
+        stoppable_sleep(5)
 
         # Phase 3: Traditional RPA - Click report, copy content and close
         logger.info("[JACKSON SUMMARY] Phase 3a: Clicking on report document...")
@@ -194,6 +208,40 @@ class JacksonSummaryFlow(BaseFlow):
         except Exception as e:
             logger.warning(f"[JACKSON SUMMARY] OmniParser warmup failed: {e}")
             # Continue anyway - not critical
+
+    def _click_fullscreen(self):
+        """Click fullscreen button for better visualization during agentic phase."""
+        self.set_step("CLICK_FULLSCREEN")
+        fullscreen_img = config.get_rpa_setting("images.jackson_fullscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON SUMMARY] Clicked fullscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[JACKSON SUMMARY] Fullscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[JACKSON SUMMARY] Error clicking fullscreen: {e}")
+
+    def _click_normalscreen(self):
+        """Click normalscreen button to restore view after agentic phase."""
+        self.set_step("CLICK_NORMALSCREEN")
+        normalscreen_img = config.get_rpa_setting("images.jackson_normalscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON SUMMARY] Clicked normalscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[JACKSON SUMMARY] Normalscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[JACKSON SUMMARY] Error clicking normalscreen: {e}")
 
     def _phase2_agentic_find_report(self) -> bool:
         """
