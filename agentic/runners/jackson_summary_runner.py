@@ -251,11 +251,12 @@ class JacksonSummaryRunner:
             image_b64 = self._get_image_base64_from_parsed(parsed)
             elements = self._elements_to_dicts(parsed.elements)
 
-            # Get agent decision
+            # Decide action
             result = self.report_finder.decide_action(
                 image_base64=image_b64,
                 ui_elements=elements,
                 history=self.history[-10:],
+                current_step=self.current_step,
             )
 
             self._record_step(
