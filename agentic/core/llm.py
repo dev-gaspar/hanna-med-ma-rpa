@@ -22,7 +22,7 @@ def get_gemini_api_key() -> str:
 
 
 def create_gemini_model(
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-3-flash-preview",
     temperature: float = 0.2,
     max_retries: int = 2,
 ) -> ChatGoogleGenerativeAI:
@@ -51,7 +51,7 @@ def create_gemini_model(
 
 
 def create_vision_model(
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-3-flash-preview",
     temperature: float = 0.2,
 ) -> ChatGoogleGenerativeAI:
     """Create a Gemini model for vision tasks."""

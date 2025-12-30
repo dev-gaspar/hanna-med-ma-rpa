@@ -71,9 +71,10 @@ class BaseAgent(ABC):
         user_prompt = self.get_user_prompt(**context)
         output_schema = self.get_output_schema()
 
-        # Create structured model
+        # Create structured model using json_schema method (recommended for v4.0+)
+        # See: https://docs.langchain.com/integrations/chat/google_generative_ai
         structured_model = model.with_structured_output(
-            schema=output_schema, method="function_calling"
+            schema=output_schema, method="json_schema"
         )
 
         # Build user message content
@@ -100,10 +101,34 @@ class BaseAgent(ABC):
         ]
 
         logger.info(f"[{self.agent_name.upper()}] Invoking Gemini...")
-        result = structured_model.invoke(messages)
-        logger.info(f"[{self.agent_name.upper()}] Response: {result}")
 
-        return result
+        # Retry logic for when structured output returns None
+        max_retries = 3
+        result = None
+
+        for attempt in range(max_retries):
+            try:
+                result = structured_model.invoke(messages)
+
+                if result is not None:
+                    logger.info(f"[{self.agent_name.upper()}] Response: {result}")
+                    return result
+                else:
+                    logger.warning(
+                        f"[{self.agent_name.upper()}] Received None response (attempt {attempt + 1}/{max_retries})"
+                    )
+
+            except Exception as e:
+                logger.error(
+                    f"[{self.agent_name.upper()}] Error on attempt {attempt + 1}: {e}"
+                )
+                if attempt == max_retries - 1:
+                    raise
+
+        # If we exhausted retries with None, raise an error
+        raise ValueError(
+            f"[{self.agent_name.upper()}] Failed to get structured response after {max_retries} attempts"
+        )
 
     @staticmethod
     def format_ui_elements(elements: List[Dict[str, Any]]) -> str:

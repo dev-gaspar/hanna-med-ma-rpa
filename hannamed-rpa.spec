@@ -1,11 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import copy_metadata
+import sys
+sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 block_cipher = None
 
 # Collect metadata for packages that use importlib.metadata.version()
 replicate_metadata = copy_metadata('replicate')
 httpx_metadata = copy_metadata('httpx')
+langchain_metadata = copy_metadata('langchain')
+langchain_core_metadata = copy_metadata('langchain_core')
+langchain_google_genai_metadata = copy_metadata('langchain_google_genai')
+langchain_community_metadata = copy_metadata('langchain_community')
+langchain_text_splitters_metadata = copy_metadata('langchain_text_splitters')
+# langchain-google-genai v4.x uses google-genai SDK
+google_genai_metadata = copy_metadata('google-genai')
 
 a = Analysis(
     ['gui.py', 'app.py'],  # Include app.py in analysis for proper import
@@ -27,7 +36,7 @@ a = Analysis(
         ('api', 'api'),
         ('services', 'services'),
         ('agentic', 'agentic'),  # Agentic module for RPA automation
-    ] + replicate_metadata + httpx_metadata,
+    ] + replicate_metadata + httpx_metadata + langchain_metadata + langchain_core_metadata + langchain_google_genai_metadata + langchain_community_metadata + langchain_text_splitters_metadata + google_genai_metadata,
     hiddenimports=[
         'customtkinter',
         'fastapi',
@@ -78,12 +87,47 @@ a = Analysis(
         'agentic.emr.jackson.tools',
         'agentic.runners',
         'agentic.runners.jackson_summary_runner',
-        # External AI dependencies
-        'langchain_google_genai',
-        'langchain_core',
-        'langchain_core.messages',
-        'langchain_core.outputs',
+        # External AI dependencies - langchain (order matters!)
         'langchain',
+        'langchain.globals',
+        'langchain.chains',
+        'langchain.schema',
+        'langchain.callbacks',
+        'langchain.callbacks.manager',
+        # langchain_core (must come after langchain)
+        'langchain_core',
+        'langchain_core.globals',
+        'langchain_core.messages',
+        'langchain_core.messages.base',
+        'langchain_core.messages.human',
+        'langchain_core.messages.ai',
+        'langchain_core.messages.system',
+        'langchain_core.outputs',
+        'langchain_core.output_parsers',
+        'langchain_core.language_models',
+        'langchain_core.language_models.base',
+        'langchain_core.language_models.chat_models',
+        'langchain_core.load',
+        'langchain_core.load.serializable',
+        'langchain_core.tracers',
+        'langchain_core.tracers.context',
+        'langchain_core.runnables',
+        'langchain_core.runnables.base',
+        'langchain_core.callbacks',
+        'langchain_core.callbacks.manager',
+        # langchain_google_genai v4.x
+        'langchain_google_genai',
+        'langchain_google_genai.chat_models',
+        # langchain_community and text splitters
+        'langchain_community',
+        'langchain_text_splitters',
+        # google-genai SDK (new for v4.x)
+        'google.genai',
+        'google.genai.types',
+        'google.genai.client',
+        # Legacy compatibility (may still be referenced)
+        'google.generativeai',
+        'google.ai.generativelanguage',
         # Core modules
         'core',
         'core.rpa_engine',
