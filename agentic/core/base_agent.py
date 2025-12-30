@@ -3,6 +3,7 @@ Base Agent class for all EMR-specific agents.
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -87,8 +88,10 @@ class BaseAgent(ABC):
                 }
             )
 
-        # Add text prompt
-        user_content.append({"type": "text", "text": user_prompt})
+        # Add text prompt with timestamp prefix
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_prompt_with_timestamp = f"CURRENT DATE/TIME: {timestamp}\n\n{user_prompt}"
+        user_content.append({"type": "text", "text": user_prompt_with_timestamp})
 
         # Build messages
         messages = [

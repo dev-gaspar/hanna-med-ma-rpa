@@ -18,15 +18,15 @@ a = Analysis(
         ('logger.py', '.'),
         ('config_manager.py', '.'),
         ('tunnel_manager.py', '.'),
-        ('.env', '.'),  # ⭐ Archivo de variables de entorno
-        ('rpa_config.json', '.'),  # ⭐ Configuración centralizada
-        ('images', 'images'),  # ⭐ Todas las imágenes para PyAutoGUI
-        # ⭐ New modules
+        ('.env', '.'),  # Archivo de variables de entorno
+        ('rpa_config.json', '.'),  # Configuración centralizada
+        ('images', 'images'),  # Todas las imágenes para PyAutoGUI
+        # New modules
         ('core', 'core'),
         ('flows', 'flows'),
         ('api', 'api'),
         ('services', 'services'),
-        ('agentic', 'agentic'),  # ⭐ Agentic module for RPA automation
+        ('agentic', 'agentic'),  # Agentic module for RPA automation
     ] + replicate_metadata + httpx_metadata,
     hiddenimports=[
         'customtkinter',
@@ -52,7 +52,7 @@ a = Analysis(
         'botocore',  # Required by boto3
         'logging',  # VDI logging
         'pathlib',  # Path handling
-        # ⭐ Replicate for OmniParser (agentic)
+        # Replicate for OmniParser (agentic)
         'replicate',
         'replicate.client',
         'replicate.__about__',
@@ -60,14 +60,31 @@ a = Analysis(
         'httpx._transports',
         'httpx._transports.default',
         'httpcore',
-        # ⭐ Agentic module
+        # Agentic module
         'agentic',
         'agentic.agent_runner',
         'agentic.action_executor',
         'agentic.omniparser_client',
         'agentic.screen_capture',
         'agentic.models',
-        # ⭐ Core modules
+        # New Agentic submodules
+        'agentic.core',
+        'agentic.core.base_agent',
+        'agentic.core.llm',
+        'agentic.emr',
+        'agentic.emr.jackson',
+        'agentic.emr.jackson.patient_finder',
+        'agentic.emr.jackson.report_finder',
+        'agentic.emr.jackson.tools',
+        'agentic.runners',
+        'agentic.runners.jackson_summary_runner',
+        # External AI dependencies
+        'langchain_google_genai',
+        'langchain_core',
+        'langchain_core.messages',
+        'langchain_core.outputs',
+        'langchain',
+        # Core modules
         'core',
         'core.rpa_engine',
         'core.system_utils',

@@ -23,10 +23,15 @@ from logger import logger
 
 from .base_flow import BaseFlow
 from .jackson import JacksonFlow
-from agentic import AgentRunner
+
+# OLD: n8n-based AgentRunner (commented for reference)
+# from agentic import AgentRunner
 from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
 from agentic.screen_capturer import get_screen_capturer
+
+# NEW: Local runner with prompt chaining
+from agentic.runners import JacksonSummaryRunner
 
 
 class JacksonSummaryFlow(BaseFlow):
@@ -245,31 +250,23 @@ class JacksonSummaryFlow(BaseFlow):
 
     def _phase2_agentic_find_report(self) -> bool:
         """
-        Phase 2: Use the agentic brain to find and open the patient's Final Report.
-        The n8n brain controls the navigation until it signals 'finish'.
+        Phase 2: Use local agentic runner to find and open the patient's Final Report.
+        Uses prompt chaining with specialized agents (PatientFinder, ReportFinder).
 
         Returns:
             True if patient was found, False if not found.
         """
         self.set_step("PHASE2_AGENTIC_FIND_REPORT")
 
-        # Build the goal for the agent
-        goal = (
-            f"Find and open the Final Report for patient '{self.patient_name}'. "
-            f"Navigate through the patient list, search for the patient name, "
-            f"click on their record, and open the Final Report tab. "
-            f"Signal 'finish' when the Final Report content is visible. "
-            f"Signal 'patient_not_found' if you cannot locate the patient after searching."
+        # =====================================================================
+        # NEW: Local runner with prompt chaining (PatientFinder + ReportFinder)
+        # =====================================================================
+        runner = JacksonSummaryRunner(
+            max_steps=30,
+            step_delay=1,
         )
 
-        # Create and run the agent with the Jackson Summary brain
-        runner = AgentRunner(
-            n8n_webhook_url=self.JACKSON_SUMMARY_BRAIN_URL,
-            max_steps=30,  # Reasonable limit for finding a patient
-            step_delay=1.5,  # Faster for simple navigation
-        )
-
-        result = runner.run(goal=goal)
+        result = runner.run(patient_name=self.patient_name)
 
         # Check if patient was not found
         if result.status == AgentStatus.PATIENT_NOT_FOUND:
@@ -289,6 +286,36 @@ class JacksonSummaryFlow(BaseFlow):
         # Give time for the report content to fully render
         stoppable_sleep(2)
         return True
+
+        # =====================================================================
+        # OLD: n8n-based AgentRunner (commented for reference)
+        # =====================================================================
+        # goal = (
+        #     f"Find and open the Final Report for patient '{self.patient_name}'. "
+        #     f"Navigate through the patient list, search for the patient name, "
+        #     f"click on their record, and open the Final Report tab. "
+        #     f"Signal 'finish' when the Final Report content is visible. "
+        #     f"Signal 'patient_not_found' if you cannot locate the patient after searching."
+        # )
+        #
+        # runner = AgentRunner(
+        #     n8n_webhook_url=self.JACKSON_SUMMARY_BRAIN_URL,
+        #     max_steps=30,
+        #     step_delay=1.5,
+        # )
+        #
+        # result = runner.run(goal=goal)
+        #
+        # if result.status == AgentStatus.PATIENT_NOT_FOUND:
+        #     logger.warning(f"[JACKSON SUMMARY] Agent signaled patient not found: {result.error}")
+        #     return False
+        #
+        # if result.status != AgentStatus.FINISHED:
+        #     raise Exception(f"Agentic phase failed: {result.error or 'Agent did not find the report'}")
+        #
+        # logger.info(f"[JACKSON SUMMARY] Agent completed in {result.steps_taken} steps")
+        # stoppable_sleep(2)
+        # return True
 
     def _handle_info_modal_after_login(self):
         """
