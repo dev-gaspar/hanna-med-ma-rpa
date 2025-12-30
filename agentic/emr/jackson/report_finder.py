@@ -143,7 +143,7 @@ SKIP "23 Hour History and Physical Update Note" - use nav_down to pass it!
 
 STEP GUIDANCE:
 - Steps 1-10: Priority 1 (History and Physical)
-- Steps 11-15: Priority 2 (ED Notes → ED Notes Physician)
+- Steps 11-15: Priority 2 (ED/ER Notes → ED/ER Notes Physician)
 - Steps 16-20: Priority 3 (Hospitalist Notes)
 - Steps 21-30: Priority 4 (Other notes) or error
 
