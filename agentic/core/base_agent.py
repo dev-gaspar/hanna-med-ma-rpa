@@ -4,7 +4,7 @@ Base Agent class for all EMR-specific agents.
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -142,8 +142,104 @@ class BaseAgent(ABC):
         lines = []
         for el in elements:
             el_id = el.get("id", "?")
-            content = el.get("content", "")[:80]
+            el_type = el.get("type", "unknown")
+            content = el.get("content", "")[:120]
             center = el.get("center", [0, 0])
-            lines.append(f"[{el_id}] '{content}' at ({center[0]}, {center[1]})")
+            lines.append(
+                f"[{el_id}] ({el_type}) '{content}' at ({center[0]}, {center[1]})"
+            )
 
         return "\n".join(lines)
+
+    @staticmethod
+    def format_history(
+        history: List[Dict[str, Any]],
+        max_entries: int = 10,
+        reasoning_length: int = 100,
+    ) -> str:
+        """
+        Format action history for prompts.
+
+        Args:
+            history: List of history entries with step, action, reasoning
+            max_entries: Maximum number of entries to include
+            reasoning_length: Max chars for reasoning truncation
+
+        Returns:
+            Formatted string for prompt inclusion
+        """
+        if not history:
+            return "(No previous actions)"
+
+        recent = history[-max_entries:]
+        lines = []
+        for h in recent:
+            step = h.get("step", "?")
+            action = h.get("action", "?")
+            reasoning = h.get("reasoning", "")[:reasoning_length]
+            lines.append(f"- Step {step}: {action} → {reasoning}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def detect_loop(
+        history: List[Dict[str, Any]],
+        consecutive_threshold: int = 3,
+        alternating_check: bool = True,
+    ) -> Tuple[bool, str]:
+        """
+        Detect navigation loops in action history.
+
+        Args:
+            history: List of history entries
+            consecutive_threshold: How many same actions trigger warning
+            alternating_check: Whether to check for alternating patterns
+
+        Returns:
+            Tuple of (is_loop_detected, warning_message)
+        """
+        if not history or len(history) < consecutive_threshold:
+            return False, ""
+
+        # Get recent actions
+        recent_actions = [h.get("action", "") for h in history[-5:]]
+
+        # Check consecutive same actions
+        if len(recent_actions) >= consecutive_threshold:
+            last_action = recent_actions[-1]
+            consecutive = sum(1 for a in reversed(recent_actions) if a == last_action)
+
+            if consecutive >= consecutive_threshold:
+                return True, (
+                    f"⚠️ WARNING: '{last_action}' repeated {consecutive} times! "
+                    "You may be stuck. Consider: CLOSE folder (dblclick) and try NEXT PRIORITY."
+                )
+
+        # Check alternating pattern (nav_up, nav_down, nav_up, nav_down)
+        if alternating_check and len(recent_actions) >= 4:
+            nav_actions = ("nav_up", "nav_down")
+            alternating = all(
+                recent_actions[i] != recent_actions[i + 1]
+                and recent_actions[i] in nav_actions
+                and recent_actions[i + 1] in nav_actions
+                for i in range(len(recent_actions) - 1)
+            )
+            if alternating:
+                return True, (
+                    "⚠️ WARNING: Alternating nav_up/nav_down detected! "
+                    "You are STUCK. CLOSE this folder (dblclick) and move to NEXT PRIORITY folder."
+                )
+
+        # Check repeated reasoning patterns
+        recent_reasonings = [h.get("reasoning", "")[:50] for h in history[-4:]]
+        if (
+            len(recent_reasonings) >= 3
+            and len(set(recent_reasonings)) == 1
+            and recent_reasonings[0]  # Not empty
+        ):
+            return True, (
+                "⚠️ WARNING: Same action pattern repeated! "
+                "Try a different approach or move to next priority."
+            )
+
+        return False, ""

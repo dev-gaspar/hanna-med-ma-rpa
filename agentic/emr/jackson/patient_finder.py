@@ -42,6 +42,8 @@ CRITICAL: Jackson has only ONE patient tab. If the patient is not visible at all
 
 USER_PROMPT = """Analyze this screenshot of the patient list.
 
+PATIENT TO FIND: {patient_name}
+
 UI_ELEMENTS:
 {elements_text}
 
@@ -84,8 +86,12 @@ class PatientFinderAgent(BaseAgent):
     def get_system_prompt(self, patient_name: str = "", **kwargs) -> str:
         return SYSTEM_PROMPT.format(patient_name=patient_name)
 
-    def get_user_prompt(self, elements_text: str = "", **kwargs) -> str:
-        return USER_PROMPT.format(elements_text=elements_text)
+    def get_user_prompt(
+        self, elements_text: str = "", patient_name: str = "", **kwargs
+    ) -> str:
+        return USER_PROMPT.format(
+            elements_text=elements_text, patient_name=patient_name
+        )
 
     def find_patient(
         self,

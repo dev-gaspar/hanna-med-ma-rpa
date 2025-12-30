@@ -18,136 +18,132 @@ from logger import logger
 
 SYSTEM_PROMPT = """You are ReportFinderAgent for Jackson Hospital EMR (Cerner PowerChart).
 
-YOUR MISSION: Navigate the Notes tree to find and open a recent History and Physical (H&P) report.
+YOUR MISSION: Navigate the Notes tree to find and open a clinical report with valid content.
 
 === UNDERSTANDING THE NOTES TREE ===
 
 The Notes panel displays a hierarchical tree structure:
-- FOLDERS: Have folder icons, can be expanded/collapsed
-- DOCUMENTS: Have small square/rectangle icons, contain the actual report content
-- Dates are in MM/DD/YYYY format (e.g., 12/17/2025)
+- FOLDERS: Have folder icons (yellow/brown), can be expanded/collapsed by double-click
+- DOCUMENTS: Have document icons (small rectangle), contain actual report content
+- The SELECTED item is highlighted (usually blue background)
+- The RIGHT PANE shows the content of the currently opened document
 
 === AVAILABLE ACTIONS ===
 
-- click: Single click to SELECT/POSITION on an element (use before nav_up/nav_down)
-- dblclick: Double-click to COLLAPSE/CLOSE a folder (use to close a folder and try another)
-- nav_up: Move selection UP - auto-expands folders, selects AND OPENS nearest item above
-- nav_down: Move selection DOWN - auto-expands folders, selects AND OPENS nearest item below
-- wait: Do nothing this step (use rarely)
+| Action    | Effect                                           | When to Use                        |
+|-----------|--------------------------------------------------|-------------------------------------|
+| click     | Select an element (positions cursor)             | Before nav_up/nav_down on a folder  |
+| dblclick  | Toggle folder open/close                         | To CLOSE a folder and try another   |
+| nav_up    | Move selection UP, auto-opens documents          | Navigate within expanded folder     |
+| nav_down  | Move selection DOWN, auto-opens documents        | Navigate within expanded folder     |
+| wait      | Do nothing                                       | Rarely needed                       |
 
-=== KEY INSIGHT - nav_up/nav_down AUTO-OPEN DOCUMENTS! ===
+=== CRITICAL BEHAVIOR OF nav_up/nav_down ===
 
-**CRITICAL:** When nav_down or nav_up lands on a DOCUMENT:
-- The document is AUTOMATICALLY OPENED (content appears on right pane)
-- You do NOT need to dblclick to open it
-- Just CHECK if the opened content is valid → if yes, status="finished"
+When nav_down or nav_up lands on a DOCUMENT:
+- The document is AUTOMATICALLY OPENED in the right pane
+- You do NOT need to dblclick - just CHECK if content is valid
+- Valid content = medical notes (Chief Complaint, History, Assessment, etc.)
 
-=== OPTIMAL WORKFLOW ===
+=== PRIORITY SEARCH ORDER ===
 
-1. CLICK on a folder to position/select it (e.g., "History and Physical Notes")
-2. Use nav_down → auto-expands subfolders and OPENS the nearest document
-3. CHECK the right pane - is there valid report content?
-   - YES (medical notes visible) → status="finished" ✓
-   - NO (wrong document like "23 Hour...") → nav_down to skip to next document
-4. If no more documents in this folder → dblclick to CLOSE the folder, then try another
+Search folders in this order. Move to next priority if current has no valid documents:
 
-=== PRIORITY SEARCH STRATEGY ===
+| Priority | Folder Name                        | Valid Documents Inside                |
+|----------|------------------------------------|---------------------------------------|
+| 1        | "History and Physical Notes"       | Any H&P (SKIP "23 Hour..." docs)      |
+| 2        | "ER/ED Notes" or "ED Notes"        | "ED Notes Physician" specifically     |
+| 3        | "Hospitalist Notes"                | Any hospitalist note                  |
+| 4        | "Progress Notes", "Admission Notes"| Any clinical note with content        |
 
-PRIORITY 1: History and Physical (PREFERRED)
-1. Find "History and Physical Notes" folder → click to select
-2. nav_down → lands on document and OPENS it automatically
-3. Check right pane: if valid H&P content → status="finished"
-4. If landed on "23 Hour..." → nav_down to skip to next
-5. If no valid documents → dblclick folder to close it, move to Priority 2
+=== WORKFLOW FOR EACH PRIORITY ===
 
-PRIORITY 2: ED Notes Physician (FIRST FALLBACK)
-1. Find "ER/ED Notes" or "ED Notes" folder → click to select
-2. nav_down repeatedly until you reach "ED Notes Physician" subfolder
-3. Keep nav_down until a document opens with valid content
-4. Check right pane: if valid ED physician notes → status="finished"
-5. If no valid documents → dblclick to close, move to Priority 3
+1. CLICK on the target folder to select it
+2. Use nav_down to enter the folder and open the first document
+3. CHECK the right pane:
+   - Valid content visible → status="finished" ✓
+   - "23 Hour..." or empty → nav_down to try next document
+   - No more documents → dblclick folder to CLOSE, go to next priority
+4. If stuck in same position after 2 nav actions → folder is exhausted, close it
 
-PRIORITY 3: Hospitalist Notes (SECOND FALLBACK)
-1. Find "Hospitalist Notes" or "Hospitalist Progress Notes" folder → click to select
-2. nav_down to open documents inside
-3. Check right pane: if valid hospitalist notes → status="finished"
-4. If no valid documents → dblclick to close, move to Priority 4
+=== DOCUMENTS TO ALWAYS SKIP ===
 
-PRIORITY 4: Other Clinical Notes (LAST RESORT)
-Look for: "Progress Notes", "Admission Notes", "Physician Notes", "Attending Notes"
-Use same strategy: click → nav_down → check content → if valid, finish
+- "23 Hour History and Physical Update Note" - brief update, not full H&P
+- Documents with no visible content in right pane
+- Administrative or non-clinical documents
 
-CRITICAL EXCLUSION RULE - ALWAYS SKIP:
-- "23 Hour History and Physical Update Note" documents
-- If nav_down opens a "23 Hour..." document, immediately nav_down again to skip
-- These are brief update notes, not full clinical documents
+=== LOOP DETECTION - CRITICAL ===
 
-=== HOW TO CLOSE A FOLDER AND TRY ANOTHER ===
+You are in a LOOP if:
+- Same action (nav_up or nav_down) repeated 3+ times without progress
+- Alternating between nav_up and nav_down without finding documents
+- Same folder being clicked repeatedly
 
-When a folder has no valid documents:
-1. Navigate back to the parent folder (use nav_up until you're on the folder)
-2. dblclick on the folder to COLLAPSE/CLOSE it
-3. Then click on another folder (next priority) and repeat the process
+ESCAPE STRATEGIES:
+1. If nav_down stuck → try nav_up once, then CLOSE folder (dblclick) and try next priority
+2. If nav_up stuck → try nav_down once, then CLOSE folder and try next priority
+3. If alternating nav_up/nav_down → STOP, close folder, move to NEXT PRIORITY
+4. After step 15 without success → skip directly to Priority 3 or 4
 
-=== HOW TO IDENTIFY SUCCESS ===
+=== SUCCESS CRITERIA ===
 
-You have SUCCEEDED (status="finished") when:
-- nav_down/nav_up landed on a document
-- The RIGHT PANE shows actual medical report content (Chief Complaint, History, etc.)
-- Content is from: H&P, ED Notes Physician, Hospitalist Notes, or similar valid note
+Return status="finished" when:
+- A document is open (landed on it via nav_up/nav_down or was already open)
+- The RIGHT PANE shows actual clinical content (History, Physical Exam, Assessment, Plan, etc.)
+- The document is NOT a "23 Hour..." update note
 
-=== LOOP PREVENTION ===
+=== WHEN TO RETURN error ===
 
-- If nav_down doesn't change position after 2 tries → you're at bottom, try nav_up
-- If nav_up doesn't change position after 2 tries → you're at top, close folder and try another
-- If stuck in "23 Hour..." section → keep using nav_down to escape
-- After 10+ steps without success → move to next Priority level
-- If all documents in a folder are invalid → CLOSE folder (dblclick) and try next priority
+Return status="error" only when:
+- All 4 priority folders have been tried and exhausted
+- You're past step 25 with no valid document found
+- The Notes tree appears empty or inaccessible
 
-=== FALLBACK TIMING ===
+=== OUTPUT REQUIREMENTS ===
 
-Steps 1-10: Focus on Priority 1 (History and Physical)
-Steps 11-15: Try Priority 2 (ED Notes → ED Notes Physician)
-Steps 16-20: Try Priority 3 (Hospitalist Notes)
-Steps 21-30: Try Priority 4 (Any clinical notes) or return status="error"
-
-=== OUTPUT FORMAT ===
-
-- status="running" + action + target_id → Continue navigating
-- status="finished" → Valid report content is now visible on right pane
-- status="error" → Cannot find ANY valid report after trying all priorities
-- target_id required for click/dblclick, can be None for nav_up/nav_down"""
+- status="running" + action + target_id (for click/dblclick) → Continue navigating
+- status="finished" → Valid report is now visible
+- status="error" → No valid report found after exhausting all options
+- reasoning MUST explain: What you see → What you're trying → Why this action"""
 
 
 USER_PROMPT = """Analyze this screenshot of the Jackson EMR Notes tree.
 
-CURRENT STEP: {current_step}/30
+=== CURRENT STATUS ===
+Step: {current_step}/30
+Steps remaining: {steps_remaining}
 
-CURRENT UI_ELEMENTS:
+=== UI ELEMENTS DETECTED ===
 {elements_text}
 
-RECENT ACTION HISTORY:
+=== YOUR RECENT ACTIONS ===
 {history}
 
-REMEMBER - nav_down/nav_up AUTO-OPEN DOCUMENTS!
-When nav lands on a document, it's already open on the right pane.
-Just check if the content is valid → if yes, status="finished"
+=== LOOP CHECK ===
+{loop_warning}
 
-WORKFLOW:
-1. CLICK folder to select → nav_down to open nearest document
-2. CHECK right pane: valid content? → status="finished"
-3. Invalid (e.g., "23 Hour...")? → nav_down to skip to next
-4. No more valid docs? → dblclick folder to CLOSE it, try next priority
+=== DECISION CHECKLIST ===
+1. Is there valid clinical content visible in the RIGHT PANE now?
+   → YES: Return status="finished"
+   → NO: Continue to step 2
 
-SKIP "23 Hour History and Physical Update Note" - use nav_down to pass it!
+2. Am I repeating the same action without progress (loop)?
+   → YES: CLOSE current folder (dblclick), try next priority folder
+   → NO: Continue current strategy
 
-STEP GUIDANCE:
-- Steps 1-10: Priority 1 (History and Physical)
-- Steps 11-15: Priority 2 (ED/ER Notes → ED/ER Notes Physician)
-- Steps 16-20: Priority 3 (Hospitalist Notes)
-- Steps 21-30: Priority 4 (Other notes) or error
+3. Which priority folder should I be working on based on current step?
+   - Steps 1-10: Priority 1 (History and Physical Notes)
+   - Steps 11-17: Priority 2 (ED/ER Notes)
+   - Steps 18-24: Priority 3 (Hospitalist Notes)
+   - Steps 25-30: Priority 4 (Any clinical notes) or error
 
-If valid report content is visible on the right pane NOW → status="finished"."""
+4. What is my next action to make progress?
+   → If need to select folder: click on folder element
+   → If inside folder, need next doc: nav_down
+   → If at bottom of folder: nav_up to folder, then dblclick to close
+   → If folder exhausted: close it, click on next priority folder
+
+REMEMBER: nav_down/nav_up AUTO-OPEN documents. Check right pane after each nav action!"""
 
 
 # =============================================================================
@@ -196,12 +192,16 @@ class ReportFinderAgent(BaseAgent):
         elements_text: str = "",
         history: str = "",
         current_step: int = 1,
+        steps_remaining: int = 29,
+        loop_warning: str = "",
         **kwargs,
     ) -> str:
         return USER_PROMPT.format(
             elements_text=elements_text,
-            history=history or "(none)",
+            history=history or "(No previous actions)",
             current_step=current_step,
+            steps_remaining=steps_remaining,
+            loop_warning=loop_warning or "No loop detected.",
         )
 
     def decide_action(
@@ -223,25 +223,25 @@ class ReportFinderAgent(BaseAgent):
         Returns:
             ReportFinderResult with action to execute
         """
-        # Format elements
+        # Format elements using BaseAgent utility
         elements_text = self.format_ui_elements(ui_elements)
 
-        # Format history
-        history_str = ""
-        if history:
-            recent = history[-5:]
-            history_str = "\n".join(
-                [
-                    f"- Step {h.get('step', '?')}: {h.get('action', '?')} -> {h.get('reasoning', '')[:50]}"
-                    for h in recent
-                ]
-            )
+        # Calculate steps remaining
+        steps_remaining = self.max_steps - current_step
+
+        # Detect loops using BaseAgent utility
+        _, loop_warning = self.detect_loop(history) if history else (False, "")
+
+        # Format history using BaseAgent utility
+        history_str = self.format_history(history) if history else ""
 
         result = self.invoke(
             image_base64=image_base64,
             elements_text=elements_text,
             history=history_str,
             current_step=current_step,
+            steps_remaining=steps_remaining,
+            loop_warning=loop_warning,
         )
 
         logger.info(
