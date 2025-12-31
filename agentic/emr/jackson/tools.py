@@ -9,11 +9,15 @@ from config import config
 from logger import logger
 
 
-def nav_up() -> str:
+def nav_up(times: int = 1) -> str:
     """
     Click the UP arrow to navigate to previous document in tree.
     Uses image from rpa_config.json with resolution placeholder.
+
+    Args:
+        times: Number of times to click the arrow (1-5)
     """
+    times = max(1, min(5, times))  # Clamp between 1 and 5
     image_path = config.get_rpa_setting("images.jackson_nav_arrow_up")
     if not image_path:
         logger.warning("[TOOL] jackson_nav_arrow_up image not configured")
@@ -22,8 +26,12 @@ def nav_up() -> str:
     try:
         location = pyautogui.locateOnScreen(image_path, confidence=0.8)
         if location:
-            pyautogui.click(pyautogui.center(location))
-            logger.info("[TOOL] nav_up: clicked arrow")
+            center = pyautogui.center(location)
+            for i in range(times):
+                pyautogui.click(center)
+                if times > 1:
+                    pyautogui.sleep(0.15)  # Small delay between clicks
+            logger.info(f"[TOOL] nav_up: clicked arrow {times}x")
             return "success"
         else:
             logger.warning("[TOOL] nav_up: arrow not found on screen")
@@ -33,11 +41,15 @@ def nav_up() -> str:
         return f"error: {e}"
 
 
-def nav_down() -> str:
+def nav_down(times: int = 1) -> str:
     """
     Click the DOWN arrow to navigate to next document in tree.
     Uses image from rpa_config.json with resolution placeholder.
+
+    Args:
+        times: Number of times to click the arrow (1-5)
     """
+    times = max(1, min(5, times))  # Clamp between 1 and 5
     image_path = config.get_rpa_setting("images.jackson_nav_arrow_down")
     if not image_path:
         logger.warning("[TOOL] jackson_nav_arrow_down image not configured")
@@ -46,8 +58,12 @@ def nav_down() -> str:
     try:
         location = pyautogui.locateOnScreen(image_path, confidence=0.8)
         if location:
-            pyautogui.click(pyautogui.center(location))
-            logger.info("[TOOL] nav_down: clicked arrow")
+            center = pyautogui.center(location)
+            for i in range(times):
+                pyautogui.click(center)
+                if times > 1:
+                    pyautogui.sleep(0.15)  # Small delay between clicks
+            logger.info(f"[TOOL] nav_down: clicked arrow {times}x")
             return "success"
         else:
             logger.warning("[TOOL] nav_down: arrow not found on screen")

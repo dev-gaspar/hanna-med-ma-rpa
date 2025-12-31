@@ -45,30 +45,48 @@ When nav_down or nav_up lands on a DOCUMENT:
 - You do NOT need to dblclick - just CHECK if content is valid
 - Valid content = medical notes (Chief Complaint, History, Assessment, etc.)
 
+REPEAT FEATURE: You can use "repeat" (1-5) to navigate multiple documents at once:
+- repeat=1 (default): Move to next/previous document
+- repeat=2: Skip 2 documents in one action  
+- repeat=3+: Skip multiple documents quickly (useful to escape loops or skip bad docs)
+
+Example: If you're at a "23 Hour..." doc and want to skip 3 documents:
+→ action="nav_down", repeat=3
+
 === PRIORITY SEARCH ORDER ===
 
-Search folders in this order. Move to next priority if current has no valid documents:
+Search folders in this STRICT order. You MUST exhaust each priority before moving to the next:
 
-| Priority | Folder Name                        | Valid Documents Inside                |
-|----------|------------------------------------|---------------------------------------|
-| 1        | "History and Physical Notes"       | Any H&P (SKIP "23 Hour..." docs)      |
-| 2        | "ER/ED Notes" or "ED Notes"        | "ED Notes Physician" specifically     |
-| 3        | "Hospitalist Notes"                | Any hospitalist note                  |
-| 4        | "Progress Notes", "Admission Notes"| Any clinical note with content        |
+| Priority | Folder Name                        | Valid Documents Inside                          |
+|----------|------------------------------------|------------------------------------------------|
+| 1        | "History and Physical Notes"       | Any H&P (SKIP "23 Hour..." docs)               |
+| 2        | "ER/ED Notes" or "ED Notes"        | "ED Notes Physician" specifically              |
+| 3        | "Hospitalist Notes"                | Any hospitalist note                           |
+| 4        | "Progress Notes", "Admission Notes"| "Physician Progress Note" FIRST, skip Nurse    |
+| 5 (LAST) | "Consultation Notes"               | ONLY if priorities 1-4 have NO docs            |
+
+PROGRESS NOTES PRIORITY: Within "Progress Notes" folder:
+- PREFER: "Physician Progress Note" - written by doctors, more comprehensive
+- SKIP: "Nurse Progress Note" - less clinical detail, only accept if no Physician notes exist
+
+CRITICAL: Consultation Notes are the LAST RESORT. If you find a Consult Note while 
+searching Priority 1-4 folders, SKIP IT and continue searching other priorities first.
 
 === WORKFLOW FOR EACH PRIORITY ===
 
 1. CLICK on the target folder to select it
 2. Use nav_down to enter the folder and open the first document
 3. CHECK the right pane:
-   - Valid content visible → status="finished" ✓
-   - "23 Hour..." or empty → nav_down to try next document
-   - No more documents → dblclick folder to CLOSE, go to next priority
+   - Valid content visible (and matches current priority) → status="finished" ✓
+   - "23 Hour..." or Consultation Note → nav_down (use repeat to skip faster)
+   - No more documents in folder → dblclick folder to CLOSE, go to next priority
 4. If stuck in same position after 2 nav actions → folder is exhausted, close it
 
-=== DOCUMENTS TO ALWAYS SKIP ===
+=== DOCUMENTS TO ALWAYS SKIP (unless all priorities exhausted) ===
 
 - "23 Hour History and Physical Update Note" - brief update, not full H&P
+- "Nurse Progress Note" - prefer "Physician Progress Note" instead
+- "Consultation Note" or "Consult Note" - ONLY accept as Priority 5 (last resort)
 - Documents with no visible content in right pane
 - Administrative or non-clinical documents
 
@@ -90,21 +108,59 @@ ESCAPE STRATEGIES:
 Return status="finished" when:
 - A document is open (landed on it via nav_up/nav_down or was already open)
 - The RIGHT PANE shows actual clinical content (History, Physical Exam, Assessment, Plan, etc.)
-- The document is NOT a "23 Hour..." update note
+- The document matches current priority (H&P for Priority 1, ED Notes for Priority 2, etc.)
+
+=== PRAGMATIC MODE - WHEN STEPS ARE RUNNING LOW ===
+
+BE PRAGMATIC when steps are running out:
+
+| Steps Remaining | Behavior                                                    |
+|-----------------|-------------------------------------------------------------|
+| 15+ steps left  | Follow strict priority order, skip Consult Notes            |
+| 10-14 steps     | Accept any clinical note from Priority 1-4 folders          |
+| 5-9 steps       | Accept Consultation Notes if they have good clinical content|
+| <5 steps        | ACCEPT ANY document with clinical content immediately       |
+
+CRITICAL: It's better to return a Consultation Note than to fail with "error".
+A Consult Note with clinical content is MORE VALUABLE than no document at all.
 
 === WHEN TO RETURN error ===
 
-Return status="error" only when:
-- All 4 priority folders have been tried and exhausted
-- You're past step 25 with no valid document found
+Return status="error" IMMEDIATELY when:
+- You are NOT in the Notes tree view (e.g., "Clinical Entry", forms, or any non-Notes view)
+- After 3 consecutive attempts to navigate back to Notes tree without success
+- All priority folders have been tried AND no document has ANY clinical content
+- You're past step 28 with no valid document found
 - The Notes tree appears empty or inaccessible
+
+CRITICAL - WRONG VIEW DETECTION:
+If you see "Clinical Entry", forms, or anything that is NOT the hierarchical Notes tree:
+→ This means RPA navigation failed - you are in the WRONG VIEW
+→ Do NOT waste steps trying to click sidebar icons to "return" to Notes
+→ Return status="error" IMMEDIATELY with reasoning explaining you're in wrong view
+→ The system will handle cleanup and retry
+
+Signs you are in the WRONG VIEW:
+- "Clinical Entry" header visible
+- Forms/data entry fields instead of folder tree
+- No folder icons (yellow/brown) visible
+- No "History and Physical Notes", "Progress Notes" etc. folders visible
 
 === OUTPUT REQUIREMENTS ===
 
 - status="running" + action + target_id (for click/dblclick) → Continue navigating
+- status="running" + action="nav_up" or "nav_down" + repeat (1-5) → Navigate multiple docs at once
 - status="finished" → Valid report is now visible
 - status="error" → No valid report found after exhausting all options
-- reasoning MUST explain: What you see → What you're trying → Why this action"""
+- reasoning MUST explain: What you see → What you're trying → Why this action
+
+EXAMPLE OUTPUT WITH REPEAT:
+{
+  "status": "running",
+  "action": "nav_down",
+  "repeat": 3,
+  "reasoning": "I see 3 '23 Hour...' docs - skipping them all at once to reach potential H&P"
+}"""
 
 
 USER_PROMPT = """Analyze this screenshot of the Jackson EMR Notes tree.
@@ -162,6 +218,10 @@ class ReportFinderResult(BaseModel):
     )
     target_id: Optional[int] = Field(
         default=None, description="Element ID for click/dblclick actions"
+    )
+    repeat: int = Field(
+        default=1,
+        description="Number of times to repeat nav_up or nav_down (1-5). Use >1 to skip multiple documents quickly.",
     )
     reasoning: str = Field(
         description="Brief explanation: Current State -> Observation -> Action"

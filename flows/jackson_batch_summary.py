@@ -5,7 +5,6 @@ Extends BaseBatchSummaryFlow to provide Jackson-specific implementation.
 Keeps EMR session open while processing multiple patients.
 """
 
-import threading
 from typing import Optional
 
 import pyautogui
@@ -20,8 +19,7 @@ from .base_batch_summary import BaseBatchSummaryFlow
 from .jackson import JacksonFlow
 from agentic import AgentRunner
 from agentic.models import AgentStatus
-from agentic.omniparser_client import get_omniparser_client
-from agentic.screen_capturer import get_screen_capturer
+from agentic.omniparser_client import start_warmup_async
 
 
 class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
@@ -43,7 +41,6 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
     def __init__(self):
         super().__init__()
         self._jackson_flow = JacksonFlow()
-        self._omniparser_warmed = False
 
     def setup(
         self,
@@ -88,11 +85,8 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         logger.info("[JACKSON-BATCH] Navigating to patient list...")
 
         try:
-            # Warmup OmniParser in background while navigating
-            warmup_thread = threading.Thread(
-                target=self._warmup_omniparser, daemon=True
-            )
-            warmup_thread.start()
+            # Start OmniParser warmup in background
+            start_warmup_async()
 
             # Reuse Jackson flow steps
             self._jackson_flow.step_1_tab()
@@ -107,10 +101,6 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
 
             self._jackson_flow.step_7_patient_list()
             self._jackson_flow.step_8_hospital_tab()
-
-            # Wait for warmup
-            if warmup_thread.is_alive():
-                warmup_thread.join(timeout=60)
 
             stoppable_sleep(3)
             logger.info("[JACKSON-BATCH] Patient list visible")
@@ -254,23 +244,6 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         self._jackson_flow.step_11_vdi_tab()
 
         logger.info("[JACKSON-BATCH] Cleanup complete")
-
-    def _warmup_omniparser(self):
-        """Pre-heat OmniParser API."""
-        if self._omniparser_warmed:
-            return
-
-        try:
-            capturer = get_screen_capturer()
-            omniparser = get_omniparser_client()
-            data_url = capturer.capture_data_url()
-            parsed = omniparser.parse_image(data_url)
-            logger.info(
-                f"[JACKSON-BATCH] OmniParser warmed up - {len(parsed.elements)} elements"
-            )
-            self._omniparser_warmed = True
-        except Exception as e:
-            logger.warning(f"[JACKSON-BATCH] Warmup failed: {e}")
 
     def _handle_info_modal_after_login(self):
         """Handle info modal that may appear after login."""

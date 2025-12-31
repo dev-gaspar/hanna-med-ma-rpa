@@ -7,6 +7,7 @@ import json
 import os
 import re
 import time
+import threading
 from typing import List, Optional
 
 import httpx
@@ -146,9 +147,25 @@ class OmniParserClient:
                     time.sleep(self.retry_delay)
 
             except Exception as e:
-                # For non-timeout errors, log and re-raise immediately
-                logger.error(f"[OMNIPARSER] API error (non-timeout): {e}")
-                raise
+                error_str = str(e).lower()
+
+                # Handle rate limit errors (Replicate API throttling)
+                if "throttled" in error_str or "rate limit" in error_str:
+                    last_error = e
+                    # Exponential backoff: 5s, 10s, 20s...
+                    wait_time = self.retry_delay * (2 ** (attempt - 1))
+                    logger.warning(
+                        f"[OMNIPARSER] Rate limit hit (attempt {attempt}/{self.max_retries}). "
+                        f"Waiting {wait_time}s before retry..."
+                    )
+
+                    if attempt < self.max_retries:
+                        time.sleep(wait_time)
+                        continue
+                else:
+                    # For other non-recoverable errors, log and re-raise immediately
+                    logger.error(f"[OMNIPARSER] API error (non-recoverable): {e}")
+                    raise
 
         # All retries exhausted
         logger.error(
@@ -346,6 +363,7 @@ class OmniParserClient:
 
 # Singleton instance
 _client_instance: Optional[OmniParserClient] = None
+_warmup_thread: Optional[threading.Thread] = None
 
 
 def get_omniparser_client() -> OmniParserClient:
@@ -354,3 +372,65 @@ def get_omniparser_client() -> OmniParserClient:
     if _client_instance is None:
         _client_instance = OmniParserClient()
     return _client_instance
+
+
+def start_warmup_async() -> threading.Thread:
+    """
+    Start OmniParser warmup in a background thread.
+    Call this at the beginning of a flow to pre-heat the API.
+
+    Returns:
+        The warmup thread (can be joined later if needed)
+    """
+    global _warmup_thread
+
+    def _do_warmup():
+        try:
+            client = get_omniparser_client()
+            logger.info("[OMNIPARSER] Warmup: Capturing screen...")
+
+            # Capture current screen
+            image_data_url = capture_screen_data_url()
+
+            # Parse to warm up the API
+            logger.info("[OMNIPARSER] Warmup: Sending to API...")
+            result = client.parse_image(image_data_url)
+
+            logger.info(
+                f"[OMNIPARSER] Warmup complete - detected {len(result.elements)} elements"
+            )
+        except Exception as e:
+            logger.warning(f"[OMNIPARSER] Warmup failed (non-critical): {e}")
+
+    _warmup_thread = threading.Thread(target=_do_warmup, daemon=True)
+    _warmup_thread.start()
+    logger.info("[OMNIPARSER] Warmup started in background")
+    return _warmup_thread
+
+
+def wait_for_warmup(timeout: float = 60.0) -> bool:
+    """
+    Wait for the warmup thread to complete.
+
+    Args:
+        timeout: Maximum seconds to wait
+
+    Returns:
+        True if warmup completed, False if timed out or no warmup running
+    """
+    global _warmup_thread
+
+    if _warmup_thread is None:
+        return True  # No warmup to wait for
+
+    if not _warmup_thread.is_alive():
+        return True  # Already finished
+
+    logger.info(f"[OMNIPARSER] Waiting for warmup to complete (max {timeout}s)...")
+    _warmup_thread.join(timeout=timeout)
+
+    if _warmup_thread.is_alive():
+        logger.warning("[OMNIPARSER] Warmup still running after timeout")
+        return False
+
+    return True

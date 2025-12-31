@@ -22,7 +22,7 @@ from agentic.emr.jackson.report_finder import ReportFinderAgent
 from agentic.emr.jackson import tools
 from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
-from agentic.screen_capturer import get_screen_capturer
+from agentic.screen_capturer import get_screen_capturer, get_agent_rois
 
 
 @dataclass
@@ -34,6 +34,9 @@ class RunnerResult:
     steps_taken: int = 0
     error: Optional[str] = None
     history: List[Dict[str, Any]] = field(default_factory=list)
+    patient_detail_open: bool = (
+        False  # True if patient detail window is open (for cleanup)
+    )
 
 
 class JacksonSummaryRunner:
@@ -78,6 +81,7 @@ class JacksonSummaryRunner:
         self.execution_id = str(uuid.uuid4())[:8]
         self.history = []
         self.current_step = 0
+        patient_detail_opened = False  # Track if patient detail window is open
 
         logger.info("=" * 70)
         logger.info(" LOCAL JACKSON RUNNER - STARTING")
@@ -91,9 +95,12 @@ class JacksonSummaryRunner:
             logger.info("[RUNNER] Phase 1: Finding patient...")
             max_retries = 3
             patient_result = None
+            phase1_elements = None  # Store elements for Phase 2
 
             for attempt in range(1, max_retries + 1):
-                patient_result = self._phase1_find_patient(patient_name)
+                patient_result, phase1_elements = self._phase1_find_patient(
+                    patient_name
+                )
 
                 if patient_result.status == "found":
                     break
@@ -116,6 +123,7 @@ class JacksonSummaryRunner:
                     steps_taken=self.current_step,
                     error=f"Patient '{patient_name}' not found",
                     history=self.history,
+                    patient_detail_open=False,  # Detail NOT open yet
                 )
 
             patient_element_id = patient_result.element_id
@@ -124,8 +132,10 @@ class JacksonSummaryRunner:
             )
 
             # === PHASE 2: Open Patient + Notes (RPA) ===
+            # CRITICAL: Pass Phase 1 elements to avoid new OmniParser call with different IDs
             logger.info("[RUNNER] Phase 2: Opening patient record...")
-            self._phase2_open_patient_and_notes(patient_element_id)
+            self._phase2_open_patient_and_notes(patient_element_id, phase1_elements)
+            patient_detail_opened = True  # Mark that patient detail is now open
             logger.info("[RUNNER] Phase 2 complete - Notes view open")
 
             # === PHASE 3: Find Report (Agent Loop) ===
@@ -139,6 +149,7 @@ class JacksonSummaryRunner:
                     steps_taken=self.current_step,
                     error="Could not find report within max steps",
                     history=self.history,
+                    patient_detail_open=True,  # Detail IS open (Phase 2 completed)
                 )
 
             logger.info("=" * 70)
@@ -161,15 +172,29 @@ class JacksonSummaryRunner:
                 steps_taken=self.current_step,
                 error=str(e),
                 history=self.history,
+                patient_detail_open=patient_detail_opened,  # Use tracked state
             )
 
     def _phase1_find_patient(self, patient_name: str):
-        """Phase 1: Use PatientFinderAgent to locate patient."""
+        """
+        Phase 1: Use PatientFinderAgent to locate patient.
+
+        Returns:
+            Tuple of (agent_result, elements_list) - elements are reused in Phase 2
+        """
         self.current_step += 1
 
-        # Capture and parse screen
-        parsed = self.omniparser.parse_screen()
-        image_b64 = self._get_image_base64_from_parsed(parsed)
+        # Capture and parse screen (with ROI mask if configured)
+        rois = get_agent_rois("jackson", "patient_finder")
+        if rois:
+            image_b64 = self.capturer.capture_with_mask_base64(rois)
+            parsed = self.omniparser.parse_image(
+                f"data:image/png;base64,{image_b64}", self.capturer.get_screen_size()
+            )
+            logger.info(f"[RUNNER] Phase 1 using ROI mask ({len(rois)} regions)")
+        else:
+            parsed = self.omniparser.parse_screen()
+            image_b64 = self._get_image_base64_from_parsed(parsed)
         elements = self._elements_to_dicts(parsed.elements)
 
         # Run agent
@@ -180,17 +205,23 @@ class JacksonSummaryRunner:
         )
 
         self._record_step("patient_finder", result.status, result.reasoning)
-        return result
+        # Return both result AND elements for Phase 2 to reuse
+        return result, elements
 
-    def _phase2_open_patient_and_notes(self, element_id: int):
-        """Phase 2: RPA to open patient and click Notes."""
+    def _phase2_open_patient_and_notes(self, element_id: int, elements: list):
+        """
+        Phase 2: RPA to open patient and click Notes.
+
+        Args:
+            element_id: ID of patient element from Phase 1
+            elements: Elements list from Phase 1 (SAME IDs)
+        """
         import pyautogui
 
         self.current_step += 1
 
-        # Get current elements for clicking
-        parsed = self.omniparser.parse_screen()
-        elements = self._elements_to_dicts(parsed.elements)
+        # CRITICAL: Use elements from Phase 1 - DO NOT re-capture!
+        # OmniParser generates new IDs on each parse, causing wrong clicks
 
         # Double-click patient
         result = tools.click_element(element_id, elements, action="dblclick")
@@ -240,15 +271,28 @@ class JacksonSummaryRunner:
     def _phase3_find_report(self) -> bool:
         """Phase 3: Use ReportFinderAgent in a loop until report found."""
 
+        # Get ROIs for report finder (notes_tree + report_content)
+        rois = get_agent_rois("jackson", "report_finder")
+        using_roi = len(rois) > 0
+        if using_roi:
+            logger.info(f"[RUNNER] Phase 3 using ROI mask ({len(rois)} regions)")
+
         while self.current_step < self.max_steps:
             check_should_stop()
             self.current_step += 1
 
             logger.info(f"[RUNNER] Step {self.current_step}/{self.max_steps}")
 
-            # Capture and parse
-            parsed = self.omniparser.parse_screen()
-            image_b64 = self._get_image_base64_from_parsed(parsed)
+            # Capture and parse (with ROI mask if configured)
+            if using_roi:
+                image_b64 = self.capturer.capture_with_mask_base64(rois)
+                parsed = self.omniparser.parse_image(
+                    f"data:image/png;base64,{image_b64}",
+                    self.capturer.get_screen_size(),
+                )
+            else:
+                parsed = self.omniparser.parse_screen()
+                image_b64 = self._get_image_base64_from_parsed(parsed)
             elements = self._elements_to_dicts(parsed.elements)
 
             # Decide action
@@ -272,8 +316,11 @@ class JacksonSummaryRunner:
                 logger.error(f"[RUNNER] Agent error: {result.reasoning}")
                 return False
 
-            # Execute action
-            self._execute_action(result.action, result.target_id, elements)
+            # Execute action (with repeat for nav_up/nav_down)
+            repeat = getattr(result, "repeat", 1) or 1
+            self._execute_action(
+                result.action, result.target_id, elements, repeat=repeat
+            )
 
             # Delay before next step
             stoppable_sleep(self.step_delay)
@@ -281,12 +328,14 @@ class JacksonSummaryRunner:
         logger.warning("[RUNNER] Max steps reached without finding report")
         return False
 
-    def _execute_action(self, action: str, target_id: Optional[int], elements: list):
+    def _execute_action(
+        self, action: str, target_id: Optional[int], elements: list, repeat: int = 1
+    ):
         """Execute the action decided by the agent."""
         if action == "nav_up":
-            tools.nav_up()
+            tools.nav_up(times=repeat)
         elif action == "nav_down":
-            tools.nav_down()
+            tools.nav_down(times=repeat)
         elif action == "click" and target_id is not None:
             tools.click_element(target_id, elements, action="click")
         elif action == "dblclick" and target_id is not None:
