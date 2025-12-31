@@ -3,12 +3,11 @@ Baptist Summary Flow - Hybrid RPA + Agentic flow for patient summary retrieval.
 
 This flow combines:
 1. Traditional RPA to navigate to the patient list
-2. Agentic brain (n8n) to find the specific patient across hospital tabs
+2. Local agentic runner to find the patient and navigate to report
 3. Traditional RPA to print report as PDF and extract text content
 """
 
 import os
-import threading
 from datetime import datetime
 from typing import Optional
 
@@ -22,10 +21,11 @@ from logger import logger
 
 from .base_flow import BaseFlow
 from .baptist import BaptistFlow
-from agentic import AgentRunner
 from agentic.models import AgentStatus
-from agentic.omniparser_client import get_omniparser_client
-from agentic.screen_capturer import get_screen_capturer
+from agentic.omniparser_client import start_warmup_async
+
+# Local runner with prompt chaining (replaces n8n AgentRunner)
+from agentic.runners import BaptistSummaryRunner
 
 
 class BaptistSummaryFlow(BaseFlow):
@@ -33,9 +33,9 @@ class BaptistSummaryFlow(BaseFlow):
     Hybrid RPA flow for retrieving patient summary from Baptist Health.
 
     Workflow:
-    1. Phase 1 (RPA): Navigate to patient list using existing Baptist flow steps 1-10
-    2. Warmup: Pre-heat OmniParser API for faster agentic execution
-    3. Phase 2 (Agentic): Use n8n brain to find patient across hospital tabs and open notes
+    1. Warmup: Pre-heat OmniParser API in background
+    2. Phase 1 (RPA): Navigate to patient list using existing Baptist flow steps 1-10
+    3. Phase 2 (Agentic): Use local runner to find patient and navigate to report
     4. Phase 3 (RPA): Print report to PDF and extract text content
     5. Phase 4 (RPA): Cleanup - close horizon session and return to start
     """
@@ -45,11 +45,6 @@ class BaptistSummaryFlow(BaseFlow):
 
     # PDF output path on desktop
     PDF_FILENAME = "baptis report.pdf"
-
-    # Webhook URL for the Baptist Summary brain in n8n (for agentic phase)
-    BAPTIST_SUMMARY_BRAIN_URL = config.get_rpa_setting(
-        "agentic.baptist_summary_brain_url"
-    )
 
     def __init__(self):
         super().__init__()
@@ -95,35 +90,32 @@ class BaptistSummaryFlow(BaseFlow):
         if not self.patient_name:
             raise ValueError("Patient name is required for summary flow")
 
-        # Start warming up OmniParser in background WHILE Phase 1 runs
-        warmup_thread = threading.Thread(target=self._warmup_omniparser, daemon=True)
-        logger.info("[BAPTIST SUMMARY] Starting OmniParser warmup in background...")
-        warmup_thread.start()
+        # Start OmniParser warmup in background BEFORE Phase 1
+        start_warmup_async()
 
         # Phase 1: Traditional RPA - Navigate to patient list
         logger.info("[BAPTIST SUMMARY] Phase 1: Navigating to patient list...")
         self._phase1_navigate_to_patient_list()
         logger.info("[BAPTIST SUMMARY] Phase 1: Complete - Patient list visible")
 
-        # Wait for warmup to complete if still running
-        if warmup_thread.is_alive():
-            logger.info(
-                "[BAPTIST SUMMARY] Waiting for OmniParser warmup to complete..."
-            )
-            warmup_thread.join(timeout=60)  # Max 60 seconds
-        logger.info("[BAPTIST SUMMARY] OmniParser ready")
+        # Click fullscreen for better visualization during agentic phase
+        logger.info("[BAPTIST SUMMARY] Entering fullscreen mode...")
+        self._click_fullscreen()
 
-        # Phase 2: Agentic - Find the patient across hospital tabs
+        # Phase 2: Agentic - Find the patient and navigate to report
         logger.info(
             f"[BAPTIST SUMMARY] Phase 2: Starting agentic search for '{self.patient_name}'..."
         )
-        patient_found = self._phase2_agentic_find_patient()
+        phase2_status, phase2_error, patient_detail_open = (
+            self._phase2_agentic_find_report()
+        )
 
-        # Handle patient not found
-        if not patient_found:
+        # Handle patient not found (detail NOT open - only patient list)
+        if phase2_status == "patient_not_found":
             logger.warning(
                 f"[BAPTIST SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
             )
+            self._click_normalscreen()
             self._cleanup_and_return_to_lobby()
             return {
                 "patient_name": self.patient_name,
@@ -132,7 +124,39 @@ class BaptistSummaryFlow(BaseFlow):
                 "error": f"Patient '{self.patient_name}' not found in patient list",
             }
 
-        logger.info("[BAPTIST SUMMARY] Phase 2: Complete - Patient notes found")
+        # Handle agent error (failed or ran out of steps)
+        if phase2_status == "error":
+            error_msg = f"Agent failed: {phase2_error}"
+            logger.error(
+                f"[BAPTIST SUMMARY] Agent FAILED for '{self.patient_name}' - cleaning up..."
+            )
+
+            # Notify error to centralized n8n webhook
+            self.notify_error(error_msg)
+
+            self._click_normalscreen()
+
+            # Choose cleanup based on whether patient detail is open
+            if patient_detail_open:
+                self._cleanup_with_patient_detail_open()
+            else:
+                self._cleanup_and_return_to_lobby()
+
+            return {
+                "patient_name": self.patient_name,
+                "content": None,
+                "patient_found": False,
+                "error": error_msg,
+            }
+
+        logger.info("[BAPTIST SUMMARY] Phase 2: Complete - Report found")
+
+        # Exit fullscreen before extracting content
+        logger.info("[BAPTIST SUMMARY] Exiting fullscreen mode...")
+        self._click_normalscreen()
+
+        # Wait for screen to settle
+        stoppable_sleep(2)
 
         # Phase 3: Print report to PDF and extract content
         logger.info("[BAPTIST SUMMARY] Phase 3: Extracting report content via PDF...")
@@ -151,6 +175,38 @@ class BaptistSummaryFlow(BaseFlow):
             "content": self.copied_content or "[ERROR] No content extracted",
             "patient_found": True,
         }
+
+    def _click_fullscreen(self):
+        """Click fullscreen button for better visualization during agentic phase."""
+        fullscreen_img = config.get_rpa_setting("images.baptist_fullscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[BAPTIST SUMMARY] Clicked fullscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[BAPTIST SUMMARY] Fullscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[BAPTIST SUMMARY] Error clicking fullscreen: {e}")
+
+    def _click_normalscreen(self):
+        """Click normalscreen button to restore view after agentic phase."""
+        normalscreen_img = config.get_rpa_setting("images.baptist_normalscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[BAPTIST SUMMARY] Clicked normalscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[BAPTIST SUMMARY] Normalscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[BAPTIST SUMMARY] Error clicking normalscreen: {e}")
 
     def _phase1_navigate_to_patient_list(self):
         """
@@ -183,99 +239,84 @@ class BaptistSummaryFlow(BaseFlow):
 
         logger.info("[BAPTIST SUMMARY] Patient list visible - ready for agentic phase")
 
-    def _warmup_omniparser(self):
+    def _phase2_agentic_find_report(self) -> tuple:
         """
-        Pre-heat the OmniParser API to reduce latency during agentic phase.
-        Captures current screen and sends to OmniParser.
-        """
-        try:
-            logger.info("[BAPTIST SUMMARY] Warmup: Capturing screen for OmniParser...")
-            screen_capturer = get_screen_capturer()
-            omniparser = get_omniparser_client()
-
-            # Capture and parse current screen
-            data_url = screen_capturer.capture_data_url()
-            result = omniparser.parse_image(data_url)
-
-            logger.info(
-                f"[BAPTIST SUMMARY] Warmup: OmniParser detected {len(result.elements)} elements"
-            )
-        except Exception as e:
-            logger.warning(f"[BAPTIST SUMMARY] Warmup failed (non-critical): {e}")
-
-    def _phase2_agentic_find_patient(self) -> bool:
-        """
-        Phase 2: Use the agentic brain to find the patient across hospital tabs.
-        The n8n brain controls the navigation until it signals 'finish'.
+        Phase 2: Use local agentic runner to find patient and navigate to report.
+        Uses prompt chaining with specialized agents (PatientFinder, ReportFinder).
 
         Returns:
-            True if patient was found, False if not found.
+            Tuple of (status, error_message, patient_detail_open):
+            - ("success", None, True) if patient found and report opened
+            - ("patient_not_found", error_msg, False) if patient not in list
+            - ("error", error_msg, bool) if agent failed or ran out of steps
         """
-        if not self.BAPTIST_SUMMARY_BRAIN_URL:
-            raise ValueError(
-                "Baptist Summary brain URL not configured. Set agentic.baptist_summary_brain_url in config."
-            )
+        self.set_step("PHASE2_AGENTIC_FIND_REPORT")
 
-        # Build the goal for the agentic runner
-        goal = f"""
-Find the patient "{self.patient_name}" in the Baptist Health PowerChart patient list.
-
-INSTRUCTIONS:
-1. Look at the current patient list visible on screen
-2. Search for a patient matching the name "{self.patient_name}"
-3. If patient is NOT found in current hospital tab, navigate to other hospital tabs at the top
-4. There are 4 hospital tabs - check each one until you find the patient
-5. Once you find the patient, click on their row to select them
-6. Open their clinical notes/documents
-7. Signal 'finish' when the patient's notes are visible
-8. If you have checked ALL 4 hospital tabs and cannot find the patient, signal 'patient_not_found'
-
-HOSPITAL TABS: You can click on hospital tabs at the top of the patient list to switch between hospitals.
-"""
-
-        logger.info(f"[BAPTIST SUMMARY] Agentic goal: Find '{self.patient_name}'")
-        logger.info(
-            f"[BAPTIST SUMMARY] Brain URL: {self.BAPTIST_SUMMARY_BRAIN_URL[:50]}..."
+        # Local runner with prompt chaining (PatientFinder + ReportFinder)
+        runner = BaptistSummaryRunner(
+            max_steps=30,
+            step_delay=1.5,
         )
 
-        # Run the agentic loop
-        runner = AgentRunner(
-            n8n_webhook_url=self.BAPTIST_SUMMARY_BRAIN_URL,
-            max_steps=config.get_rpa_setting("agentic.max_steps", 50),
-            step_delay=config.get_rpa_setting("agentic.step_delay_seconds", 2.0),
-            upload_screenshots=True,
-        )
-
-        result = runner.run(goal)
+        result = runner.run(patient_name=self.patient_name)
 
         # Check if patient was not found
         if result.status == AgentStatus.PATIENT_NOT_FOUND:
             logger.warning(
                 f"[BAPTIST SUMMARY] Agent signaled patient not found: {result.error}"
             )
-            return False
+            return ("patient_not_found", result.error, result.patient_detail_open)
 
-        # Check for errors
-        if result.status == AgentStatus.ERROR:
-            raise Exception(f"Agentic phase failed: {result.error}")
+        # Check for other failures (error, stopped, max steps reached)
+        if result.status != AgentStatus.FINISHED:
+            error_msg = (
+                result.error
+                or "Agent did not find the report (max steps reached or error)"
+            )
+            logger.error(f"[BAPTIST SUMMARY] Agent failed: {error_msg}")
+            return ("error", error_msg, result.patient_detail_open)
 
-        logger.info(
-            f"[BAPTIST SUMMARY] Agentic phase completed in {result.steps_taken} steps"
-        )
-        return True
+        logger.info(f"[BAPTIST SUMMARY] Agent completed in {result.steps_taken} steps")
+
+        # Give time for the report content to fully render
+        stoppable_sleep(2)
+        return ("success", None, True)
 
     def _cleanup_and_return_to_lobby(self):
         """
         Cleanup Baptist EMR session and return to lobby when patient not found.
-        Reuses the phase4 cleanup logic.
+        Only patient list is open (no patient detail).
         """
-        logger.info("[BAPTIST SUMMARY] Performing cleanup after patient not found...")
+        logger.info("[BAPTIST SUMMARY] Performing cleanup (patient list only)...")
         try:
             self._phase4_cleanup()
         except Exception as e:
             logger.warning(f"[BAPTIST SUMMARY] Cleanup error (continuing): {e}")
 
         # Verify we're back at the lobby
+        self.verify_lobby()
+
+    def _cleanup_with_patient_detail_open(self):
+        """
+        Cleanup when patient detail window is open (after Phase 2 partial completion).
+        Need to close both patient detail and patient list.
+        """
+        logger.info("[BAPTIST SUMMARY] Performing cleanup (patient detail open)...")
+        try:
+            # First close patient detail with Alt+F4
+            screen_w, screen_h = pyautogui.size()
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            logger.info("[BAPTIST SUMMARY] Sending Alt+F4 to close patient detail...")
+            pyautogui.hotkey("alt", "F4")
+            stoppable_sleep(2)
+
+            # Then do normal cleanup for patient list
+            self._phase4_cleanup()
+        except Exception as e:
+            logger.warning(f"[BAPTIST SUMMARY] Cleanup error (continuing): {e}")
+
         self.verify_lobby()
 
     def _phase3_extract_content_via_pdf(self):

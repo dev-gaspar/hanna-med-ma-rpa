@@ -58,6 +58,12 @@
 		"baptist_report_document": "images/{resolution}/baptist/step_report_document.png",
 		"baptist_print_powerchart": "images/{resolution}/baptist/step_print_powerchart.png",
 		"baptist_report_pdf": "images/{resolution}/baptist/baptis_report_pdf.png",
+		"baptist_nav_arrow_up": "images/{resolution}/baptist/nav_arrow_up.png",
+		"baptist_nav_arrow_down": "images/{resolution}/baptist/nav_arrow_down.png",
+		"baptist_notes_menu": "images/{resolution}/baptist/notes_menu.png",
+		"baptist_fullscreen_btn": "images/{resolution}/baptist/fullscreen_btn.png",
+		"baptist_normalscreen_btn": "images/{resolution}/baptist/normalscreen_btn.png",
+		"baptist_assign_relationship_ok": "images/{resolution}/baptist/assign_relationship_ok.png",
 		"jackson_tab": "images/{resolution}/jackson/step1_tab_jackson.png",
 		"jackson_powered": "images/{resolution}/jackson/step2_powered_jackson.png",
 		"jackson_open_download": "images/{resolution}/jackson/step3_open_download_powered.png",
@@ -153,6 +159,16 @@
 				"patient_finder": ["patient_list"],
 				"report_finder": ["notes_tree", "report_content"]
 			}
+		},
+		"baptist": {
+			"1024x768": {
+				"patient_finder": ["hospital_tabs", "patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
+			},
+			"1366x768": {
+				"patient_finder": ["hospital_tabs", "patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
+			}
 		}
 	},
 	"roi_regions": {
@@ -166,6 +182,20 @@
 				"patient_list": { "x": 18, "y": 213, "w": 986, "h": 481 },
 				"notes_tree": { "x": 234, "y": 201, "w": 150, "h": 322 },
 				"report_content": { "x": 388, "y": 201, "w": 583, "h": 497 }
+			}
+		},
+		"baptist": {
+			"1024x768": {
+				"hospital_tabs": { "x": 5, "y": 191, "w": 800, "h": 27 },
+				"patient_list": { "x": 11, "y": 241, "w": 1006, "h": 365 },
+				"notes_tree": { "x": 274, "y": 257, "w": 126, "h": 213 },
+				"report_content": { "x": 398, "y": 256, "w": 587, "h": 359 }
+			},
+			"1366x768": {
+				"hospital_tabs": { "x": 5, "y": 191, "w": 800, "h": 27 },
+				"patient_list": { "x": 11, "y": 241, "w": 1006, "h": 365 },
+				"notes_tree": { "x": 274, "y": 257, "w": 126, "h": 213 },
+				"report_content": { "x": 398, "y": 256, "w": 587, "h": 359 }
 			}
 		}
 	}
