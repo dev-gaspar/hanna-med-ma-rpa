@@ -2,7 +2,7 @@
 Jackson Batch Summary Flow - Batch patient summary for Jackson Health.
 
 Extends BaseBatchSummaryFlow to provide Jackson-specific implementation.
-Keeps EMR session open while processing multiple patients.
+Keeps EMR session open while processing multiple patients in fullscreen mode.
 """
 
 from typing import Optional
@@ -17,30 +17,37 @@ from logger import logger
 
 from .base_batch_summary import BaseBatchSummaryFlow
 from .jackson import JacksonFlow
-from agentic import AgentRunner
 from agentic.models import AgentStatus
 from agentic.omniparser_client import start_warmup_async
+from agentic.runners import JacksonSummaryRunner
 
 
 class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
     """
     Batch summary flow for Jackson Health.
 
-    Keeps the Jackson EMR session open while processing multiple patients,
-    returning consolidated results at the end.
+    Keeps the Jackson EMR session open in FULLSCREEN mode while processing
+    multiple patients, returning consolidated results at the end.
+
+    Flow:
+    1. Navigate to patient list
+    2. Enter fullscreen mode (better for agentic vision)
+    3. For each patient:
+       - Find patient and open report (agentic)
+       - Extract content (Ctrl+A, Ctrl+C)
+       - Close patient detail (Alt+F4) - return to list
+       - Wait for list to stabilize
+    4. Exit fullscreen mode
+    5. Cleanup (close EMR, return to VDI)
     """
 
     FLOW_NAME = "Jackson Batch Summary"
     FLOW_TYPE = "jackson_batch_summary"
 
-    # Webhook URL for the Jackson Summary brain in n8n (for agentic phase)
-    JACKSON_SUMMARY_BRAIN_URL = config.get_rpa_setting(
-        "agentic.jackson_summary_brain_url"
-    )
-
     def __init__(self):
         super().__init__()
         self._jackson_flow = JacksonFlow()
+        self._patient_detail_open = False  # Track if patient detail window is open
 
     def setup(
         self,
@@ -76,6 +83,111 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
             self.credentials,
         )
 
+    def execute(self):
+        """
+        Override base execute to add fullscreen handling and proper timing.
+
+        1. Navigate to patient list (once)
+        2. Enter fullscreen mode
+        3. For each patient: find, extract, return to list
+        4. Exit fullscreen mode (only at the end)
+        5. Cleanup (once)
+        """
+        logger.info("=" * 70)
+        logger.info(" JACKSON BATCH SUMMARY - STARTING")
+        logger.info("=" * 70)
+        logger.info(f"[JACKSON-BATCH] Patients to process: {self.patient_names}")
+        logger.info("=" * 70)
+
+        # Phase 1: Navigate to patient list (once)
+        if not self.navigate_to_patient_list():
+            logger.error("[JACKSON-BATCH] Failed to navigate to patient list")
+            return {
+                "patients": [],
+                "hospital": self.hospital_type,
+                "error": "Navigation failed",
+            }
+
+        # Enter fullscreen mode for better agentic vision
+        logger.info("[JACKSON-BATCH] Entering fullscreen mode...")
+        self._click_fullscreen()
+
+        # Phase 2: Process each patient in fullscreen mode
+        total_patients = len(self.patient_names)
+        for idx, patient in enumerate(self.patient_names, 1):
+            is_last_patient = idx == total_patients
+            self.current_patient = patient
+            self.current_content = None
+
+            logger.info(
+                f"[JACKSON-BATCH] Processing patient {idx}/{total_patients}: {patient}"
+            )
+
+            try:
+                found = self.find_patient(patient)
+
+                if found:
+                    # Extract content while still in fullscreen
+                    self.current_content = self.extract_content()
+                    logger.info(f"[JACKSON-BATCH] Extracted content for {patient}")
+
+                    # Close patient detail and return to list
+                    # (unless this is the last patient - we'll handle that in cleanup)
+                    if not is_last_patient:
+                        self.return_to_patient_list()
+                    else:
+                        # For last patient, just mark that detail is open
+                        self._patient_detail_open = True
+                        logger.info(
+                            "[JACKSON-BATCH] Last patient - keeping detail open for cleanup"
+                        )
+                else:
+                    logger.warning(f"[JACKSON-BATCH] Patient not found: {patient}")
+
+                self.results.append(
+                    {
+                        "patient": patient,
+                        "found": found,
+                        "content": self.current_content,
+                    }
+                )
+
+            except Exception as e:
+                logger.error(f"[JACKSON-BATCH] Error processing {patient}: {str(e)}")
+                self.results.append(
+                    {
+                        "patient": patient,
+                        "found": False,
+                        "content": None,
+                        "error": str(e),
+                    }
+                )
+                # Try to recover by closing patient detail if open
+                if self._patient_detail_open:
+                    self._close_patient_detail()
+
+        # Exit fullscreen before cleanup
+        logger.info("[JACKSON-BATCH] Exiting fullscreen mode...")
+        self._click_normalscreen()
+        stoppable_sleep(3)  # Wait for screen to settle
+
+        # Phase 3: Cleanup
+        logger.info("[JACKSON-BATCH] Cleanup phase")
+        self.cleanup()
+
+        logger.info("=" * 70)
+        logger.info(" JACKSON BATCH SUMMARY - COMPLETE")
+        logger.info(f" Processed: {total_patients} patients")
+        logger.info(f" Found: {sum(1 for r in self.results if r.get('found'))}")
+        logger.info("=" * 70)
+
+        return {
+            "patients": self.results,
+            "hospital": self.hospital_type,
+            "total": len(self.patient_names),
+            "found_count": sum(1 for r in self.results if r.get("found")),
+        }
+
     def navigate_to_patient_list(self) -> bool:
         """
         Navigate to Jackson patient list.
@@ -110,43 +222,97 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
             logger.error(f"[JACKSON-BATCH] Navigation failed: {e}")
             return False
 
+    def _click_fullscreen(self):
+        """Click fullscreen button for better visualization during agentic phase."""
+        self.set_step("CLICK_FULLSCREEN")
+        fullscreen_img = config.get_rpa_setting("images.jackson_fullscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON-BATCH] Clicked fullscreen button")
+                stoppable_sleep(2)
+            else:
+                logger.warning(
+                    "[JACKSON-BATCH] Fullscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[JACKSON-BATCH] Error clicking fullscreen: {e}")
+
+    def _click_normalscreen(self):
+        """Click normalscreen button to restore view before cleanup."""
+        self.set_step("CLICK_NORMALSCREEN")
+        normalscreen_img = config.get_rpa_setting("images.jackson_normalscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON-BATCH] Clicked normalscreen button")
+                stoppable_sleep(2)
+            else:
+                logger.warning(
+                    "[JACKSON-BATCH] Normalscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[JACKSON-BATCH] Error clicking normalscreen: {e}")
+
     def find_patient(self, patient_name: str) -> bool:
         """
-        Find a patient using the agentic brain.
+        Find a patient using the local agentic runner.
+        Uses JacksonSummaryRunner with prompt chaining (PatientFinder + ReportFinder).
 
         Returns:
-            True if patient found, False otherwise.
+            True if patient found and report opened, False otherwise.
         """
         self.set_step(f"FIND_PATIENT_{patient_name}")
         logger.info(f"[JACKSON-BATCH] Finding patient: {patient_name}")
 
-        goal = (
-            f"Find and open the Final Report for patient '{patient_name}'. "
-            f"Navigate through the patient list, search for the patient name, "
-            f"click on their record, and open the Final Report tab. "
-            f"Signal 'finish' when the Final Report content is visible. "
-            f"Signal 'patient_not_found' if you cannot locate the patient after searching."
-        )
-
-        runner = AgentRunner(
-            n8n_webhook_url=self.JACKSON_SUMMARY_BRAIN_URL,
+        # Use local runner with prompt chaining
+        runner = JacksonSummaryRunner(
             max_steps=30,
-            step_delay=1.5,
+            step_delay=1.0,
         )
 
-        result = runner.run(goal=goal)
+        result = runner.run(patient_name=patient_name)
 
+        # Store whether patient detail is open (for cleanup if error)
+        self._patient_detail_open = result.patient_detail_open
+
+        # Check if patient was not found
         if result.status == AgentStatus.PATIENT_NOT_FOUND:
             logger.warning(f"[JACKSON-BATCH] Patient not found: {patient_name}")
             return False
 
+        # Check for other failures (error, stopped, max steps reached)
         if result.status != AgentStatus.FINISHED:
-            logger.error(f"[JACKSON-BATCH] Agent error: {result.error}")
+            error_msg = result.error or "Agent did not find the report"
+            logger.error(f"[JACKSON-BATCH] Agent error for {patient_name}: {error_msg}")
+            # If patient detail is open, we need to close it before continuing
+            if self._patient_detail_open:
+                logger.info("[JACKSON-BATCH] Closing patient detail after error...")
+                self._close_patient_detail()
             return False
 
         logger.info(f"[JACKSON-BATCH] Patient found in {result.steps_taken} steps")
         stoppable_sleep(2)
         return True
+
+    def _close_patient_detail(self):
+        """Close patient detail window (Alt+F4) without navigating to VDI."""
+        screen_w, screen_h = pyautogui.size()
+        pyautogui.click(screen_w // 2, screen_h // 2)
+        stoppable_sleep(0.5)
+
+        pydirectinput.keyDown("alt")
+        stoppable_sleep(0.1)
+        pydirectinput.press("f4")
+        stoppable_sleep(0.1)
+        pydirectinput.keyUp("alt")
+
+        # Wait for patient detail to fully close
+        stoppable_sleep(5)
+        self._patient_detail_open = False
+        logger.info("[JACKSON-BATCH] Patient detail closed")
 
     def extract_content(self) -> str:
         """
@@ -155,6 +321,9 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         """
         self.set_step("EXTRACT_CONTENT")
         logger.info(f"[JACKSON-BATCH] Extracting content for: {self.current_patient}")
+
+        # Wait for report to fully render
+        stoppable_sleep(2)
 
         # Click on report document area
         report_element = self.wait_for_element(
@@ -203,6 +372,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         """
         Close current patient detail and return to patient list.
         Uses Alt+F4 to close the patient detail view.
+        Includes proper wait time for the list to stabilize.
         """
         self.set_step("RETURN_TO_PATIENT_LIST")
         logger.info("[JACKSON-BATCH] Returning to patient list...")
@@ -219,19 +389,46 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        stoppable_sleep(5)
+        # Wait for patient detail to fully close and list to stabilize
+        # This is critical to avoid "patient not found" errors
+        logger.info("[JACKSON-BATCH] Waiting for patient list to stabilize...")
+        stoppable_sleep(7)
+
+        self._patient_detail_open = False
         logger.info("[JACKSON-BATCH] Back at patient list")
 
     def cleanup(self):
-        """Close Jackson EMR session completely."""
+        """
+        Close Jackson EMR session completely.
+        Handles both scenarios:
+        - Patient detail is open (need 2 Alt+F4)
+        - Only patient list is open (need 1 Alt+F4)
+        """
         self.set_step("CLEANUP")
         logger.info("[JACKSON-BATCH] Cleanup - closing EMR...")
 
         screen_w, screen_h = pyautogui.size()
+
+        # If patient detail is still open (last patient), close it first
+        if self._patient_detail_open:
+            logger.info("[JACKSON-BATCH] Closing last patient detail...")
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            pydirectinput.keyDown("alt")
+            stoppable_sleep(0.1)
+            pydirectinput.press("f4")
+            stoppable_sleep(0.1)
+            pydirectinput.keyUp("alt")
+
+            stoppable_sleep(5)
+            self._patient_detail_open = False
+
+        # Now close the patient list/Jackson main window
+        logger.info("[JACKSON-BATCH] Closing Jackson main window...")
         pyautogui.click(screen_w // 2, screen_h // 2)
         stoppable_sleep(0.5)
 
-        # Close patient list/Jackson window with Alt+F4
         pydirectinput.keyDown("alt")
         stoppable_sleep(0.1)
         pydirectinput.press("f4")
@@ -242,6 +439,9 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
 
         # Navigate to VDI desktop
         self._jackson_flow.step_11_vdi_tab()
+
+        # Verify we're back at the lobby
+        self.verify_lobby()
 
         logger.info("[JACKSON-BATCH] Cleanup complete")
 
