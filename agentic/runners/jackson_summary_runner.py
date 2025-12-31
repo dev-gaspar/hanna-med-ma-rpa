@@ -7,14 +7,15 @@ Replaces the n8n-based AgentRunner with local agents:
 3. ReportFinderAgent - Navigate tree to find report
 """
 
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import pyautogui
+
 from config import config
-from core.rpa_engine import check_should_stop, stoppable_sleep
+from core.rpa_engine import RPABotBase
 from logger import logger
 
 from agentic.emr.jackson.patient_finder import PatientFinderAgent
@@ -45,7 +46,7 @@ class JacksonSummaryRunner:
 
     Chains specialized agents:
     1. PatientFinderAgent - Finds patient element
-    2. RPA actions - Opens patient and Notes
+    2. RPA actions - Opens patient and Notes (with modal handling)
     3. ReportFinderAgent - Navigates to report
     """
 
@@ -62,6 +63,9 @@ class JacksonSummaryRunner:
         self.capturer = get_screen_capturer()
         self.patient_finder = PatientFinderAgent()
         self.report_finder = ReportFinderAgent()
+
+        # RPA Bot instance for robust modal handling
+        self.rpa = RPABotBase()
 
         # State
         self.execution_id = ""
@@ -108,7 +112,7 @@ class JacksonSummaryRunner:
                     logger.info(
                         f"[RUNNER] Retry {attempt}/{max_retries} - OCR didn't detect patient, retrying..."
                     )
-                    stoppable_sleep(1.5)
+                    self.rpa.stoppable_sleep(1.5)
                     continue
                 else:  # not_found
                     break
@@ -211,13 +215,12 @@ class JacksonSummaryRunner:
     def _phase2_open_patient_and_notes(self, element_id: int, elements: list):
         """
         Phase 2: RPA to open patient and click Notes.
+        Uses robust modal handling for Same Name Alert and Assign Relationship modals.
 
         Args:
             element_id: ID of patient element from Phase 1
             elements: Elements list from Phase 1 (SAME IDs)
         """
-        import pyautogui
-
         self.current_step += 1
 
         # CRITICAL: Use elements from Phase 1 - DO NOT re-capture!
@@ -231,42 +234,168 @@ class JacksonSummaryRunner:
             f"Double-clicked patient element {element_id}: {result}",
         )
 
-        # Wait for patient detail to load
-        logger.info("[RUNNER] Waiting 5s for patient detail...")
-        stoppable_sleep(5)
-        check_should_stop()
+        # Wait for patient detail to load, handling modals that may appear
+        logger.info("[RUNNER] Waiting for patient detail (with modal handling)...")
+        self._handle_patient_open_modals()
+        self.rpa.check_stop()
 
-        # Press Enter to dismiss any potential modal/alert
+        # Click Notes menu using robust wait with modal handlers
         self.current_step += 1
-        pyautogui.press("enter")
-        logger.info("[RUNNER] Pressed Enter to dismiss potential modal")
-        self._record_step("rpa", "press_enter", "Pressed Enter to dismiss modal")
+        notes_found = self._click_notes_menu_with_modal_handling()
 
-        # Wait after Enter
-        logger.info("[RUNNER] Waiting 5s after Enter...")
-        stoppable_sleep(5)
-        check_should_stop()
-
-        # Click Notes menu using image
-        self.current_step += 1
-        notes_image = config.get_rpa_setting("images.jackson_notes_menu")
-        try:
-            location = pyautogui.locateOnScreen(notes_image, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[RUNNER] Clicked Notes menu")
-                self._record_step("rpa", "click_notes", "Clicked Notes menu: success")
-            else:
-                logger.warning("[RUNNER] Notes menu not found on screen")
-                self._record_step("rpa", "click_notes", "Notes menu not found")
-        except Exception as e:
-            logger.error(f"[RUNNER] Error clicking Notes: {e}")
-            self._record_step("rpa", "click_notes", f"Error: {e}")
+        if not notes_found:
+            logger.warning("[RUNNER] Notes menu not found after handling modals")
+            self._record_step("rpa", "click_notes", "Notes menu not found")
+        else:
+            logger.info("[RUNNER] Clicked Notes menu")
+            self._record_step("rpa", "click_notes", "Clicked Notes menu: success")
 
         # Wait for notes tree to load
         logger.info("[RUNNER] Waiting 5s for notes tree...")
-        stoppable_sleep(5)
-        check_should_stop()
+        self.rpa.stoppable_sleep(5)
+        self.rpa.check_stop()
+
+    def _handle_patient_open_modals(self):
+        """
+        Handle modals that may appear after double-clicking a patient:
+        - Same Name Alert: Just click OK
+        - Assign a Relationship: Click OK (first option is usually correct)
+        - Info Modal: Press Enter
+        """
+        # Give time for potential modals to appear
+        self.rpa.stoppable_sleep(3)
+
+        # Check and handle modals in sequence (they may appear one after another)
+        max_modal_checks = 3
+
+        for _ in range(max_modal_checks):
+            modal_handled = False
+
+            # Check for Same Name Alert (just click OK)
+            try:
+                same_name_ok = config.get_rpa_setting(
+                    "images.jackson_same_name_alert_ok"
+                )
+                location = pyautogui.locateOnScreen(same_name_ok, confidence=0.8)
+                if location:
+                    logger.info("[RUNNER] Same Name Alert detected - clicking OK")
+                    self.rpa.safe_click(location, "Same Name Alert OK")
+                    self._record_step(
+                        "rpa", "handle_modal", "Same Name Alert - clicked OK"
+                    )
+                    self.rpa.stoppable_sleep(2)
+                    modal_handled = True
+                    continue
+            except Exception:
+                pass
+
+            # Check for Assign Relationship (click OK to accept first/default option)
+            try:
+                assign_ok = config.get_rpa_setting(
+                    "images.jackson_assign_relationship_ok"
+                )
+                location = pyautogui.locateOnScreen(assign_ok, confidence=0.8)
+                if location:
+                    logger.info(
+                        "[RUNNER] Assign Relationship modal detected - clicking OK"
+                    )
+                    self.rpa.safe_click(location, "Assign Relationship OK")
+                    self._record_step(
+                        "rpa", "handle_modal", "Assign Relationship - clicked OK"
+                    )
+                    self.rpa.stoppable_sleep(2)
+                    modal_handled = True
+                    continue
+            except Exception:
+                pass
+
+            # Check for Info Modal (press Enter)
+            try:
+                info_modal = config.get_rpa_setting("images.jackson_info_modal")
+                location = pyautogui.locateOnScreen(info_modal, confidence=0.8)
+                if location:
+                    logger.info("[RUNNER] Info modal detected - pressing Enter")
+                    pyautogui.press("enter")
+                    self._record_step(
+                        "rpa", "handle_modal", "Info Modal - pressed Enter"
+                    )
+                    self.rpa.stoppable_sleep(2)
+                    modal_handled = True
+                    continue
+            except Exception:
+                pass
+
+            # If no modal was handled in this iteration, we're done
+            if not modal_handled:
+                break
+
+        # Final wait after handling all modals
+        self.rpa.stoppable_sleep(2)
+        logger.info("[RUNNER] Modal handling complete")
+
+    def _click_notes_menu_with_modal_handling(self) -> bool:
+        """
+        Click Notes menu using robust wait with modal handlers.
+        Returns True if Notes menu was found and clicked.
+        """
+        notes_image = config.get_rpa_setting("images.jackson_notes_menu")
+
+        # Define handlers for modals that might still appear
+        def handle_same_name_alert(loc):
+            logger.info("[RUNNER] Same Name Alert during Notes search - clicking OK")
+            self.rpa.safe_click(loc, "Same Name Alert OK")
+            self.rpa.stoppable_sleep(2)
+
+        def handle_assign_relationship(loc):
+            logger.info(
+                "[RUNNER] Assign Relationship during Notes search - clicking OK"
+            )
+            self.rpa.safe_click(loc, "Assign Relationship OK")
+            self.rpa.stoppable_sleep(2)
+
+        def handle_info_modal(loc):
+            logger.info("[RUNNER] Info modal during Notes search - pressing Enter")
+            pyautogui.press("enter")
+            self.rpa.stoppable_sleep(2)
+
+        handlers = {}
+
+        # Safely add handlers only if image paths are configured
+        try:
+            same_name_ok = config.get_rpa_setting("images.jackson_same_name_alert_ok")
+            if same_name_ok:
+                handlers[same_name_ok] = ("Same Name Alert", handle_same_name_alert)
+        except Exception:
+            pass
+
+        try:
+            assign_ok = config.get_rpa_setting("images.jackson_assign_relationship_ok")
+            if assign_ok:
+                handlers[assign_ok] = (
+                    "Assign Relationship",
+                    handle_assign_relationship,
+                )
+        except Exception:
+            pass
+
+        try:
+            info_modal = config.get_rpa_setting("images.jackson_info_modal")
+            if info_modal:
+                handlers[info_modal] = ("Info Modal", handle_info_modal)
+        except Exception:
+            pass
+
+        # Use robust wait with modal handlers
+        location = self.rpa.robust_wait_for_element(
+            target_image_path=notes_image,
+            target_description="Notes Menu",
+            handlers=handlers,
+            timeout=30,
+            confidence=0.8,
+            auto_click=True,
+        )
+
+        return location is not None
 
     def _phase3_find_report(self) -> bool:
         """Phase 3: Use ReportFinderAgent in a loop until report found."""
@@ -278,7 +407,7 @@ class JacksonSummaryRunner:
             logger.info(f"[RUNNER] Phase 3 using ROI mask ({len(rois)} regions)")
 
         while self.current_step < self.max_steps:
-            check_should_stop()
+            self.rpa.check_stop()
             self.current_step += 1
 
             logger.info(f"[RUNNER] Step {self.current_step}/{self.max_steps}")
@@ -323,7 +452,7 @@ class JacksonSummaryRunner:
             )
 
             # Delay before next step
-            stoppable_sleep(self.step_delay)
+            self.rpa.stoppable_sleep(self.step_delay)
 
         logger.warning("[RUNNER] Max steps reached without finding report")
         return False
@@ -342,7 +471,7 @@ class JacksonSummaryRunner:
             tools.click_element(target_id, elements, action="dblclick")
         elif action == "wait":
             logger.info("[RUNNER] Waiting...")
-            stoppable_sleep(1)
+            self.rpa.stoppable_sleep(1)
         else:
             logger.warning(f"[RUNNER] Unknown action: {action}")
 

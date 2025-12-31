@@ -79,6 +79,8 @@
 		"jackson_notes_menu": "images/{resolution}/jackson/notes_menu.png",
 		"jackson_fullscreen_btn": "images/{resolution}/jackson/fullscreen_btn.png",
 		"jackson_normalscreen_btn": "images/{resolution}/jackson/normalscreen_btn.png",
+		"jackson_same_name_alert_ok": "images/{resolution}/jackson/same_name_alert_ok.png",
+		"jackson_assign_relationship_ok": "images/{resolution}/jackson/assign_relationship_ok.png",
 		"steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
 		"steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
 		"steward_meditech": "images/{resolution}/steward/step3_meditech.png",
