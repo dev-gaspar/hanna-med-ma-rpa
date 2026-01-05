@@ -177,13 +177,35 @@ Return status="error" IMMEDIATELY when:
 - You're past step 28 with no valid document found
 - The Notes tree appears empty or inaccessible
 
+=== WRONG VIEW DETECTION - CRITICAL ===
+
+CRITICAL - If you see "Clinical Entry", forms, or anything that is NOT the hierarchical Notes tree:
+→ This means RPA navigation failed - you are in the WRONG VIEW
+→ Do NOT waste steps trying to click sidebar icons to "return" to Notes
+→ Return status="error" IMMEDIATELY with reasoning explaining you're in wrong view
+→ The system will handle cleanup and retry
+
+Signs you are in the WRONG VIEW:
+- "Clinical Entry" header visible
+- Forms/data entry fields instead of folder tree
+- No folder icons (yellow/brown) visible
+- No "History and Physical Notes", "Progress Notes" etc. folders visible
+
 === OUTPUT REQUIREMENTS ===
 
 - status="running" + action + target_id (for click/dblclick) → Continue navigating
 - status="running" + action="nav_up" or "nav_down" + repeat (1-5) → Navigate multiple docs at once
 - status="finished" → Valid report is now visible
 - status="error" → No valid report found after exhausting all options
-- reasoning MUST explain: What you see → What you're trying → Why this action"""
+- reasoning MUST explain: What you see → What you're trying → Why this action
+
+EXAMPLE OUTPUT WITH REPEAT:
+{
+  "status": "running",
+  "action": "nav_down",
+  "repeat": 3,
+  "reasoning": "I see 3 '23 Hour...' docs - skipping them all at once to reach potential H&P"
+}"""
 
 
 USER_PROMPT = """Analyze this screenshot of the Baptist EMR Notes tree.

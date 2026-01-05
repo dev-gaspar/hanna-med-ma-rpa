@@ -89,6 +89,27 @@ You have up to 10 steps, so 1-2 retries are acceptable.
 
 NEVER invent element IDs. If you can't find the ID, use "wait" to retry.
 
+=== ROW-BASED FALLBACK (after 1-2 waits) ===
+
+If OCR still fails after waiting, use ANY element in the SAME ROW:
+
+FOR PATIENTS:
+- If you SEE the patient but their name is NOT in UI_ELEMENTS
+- Look for OTHER elements in that row: FIN number, physician name, icon, date
+- Return status="found" + target_id=<any element in that row>
+- Clicking any element in the row will select the patient!
+
+EXAMPLE:
+- You see "Partida, Jaime A" in row 3 but no name element exists
+- UI_ELEMENTS has: [10] "945758058" (FIN), [11] "Blandon" (Physician)
+- Return target_id=10 or target_id=11 → Row gets selected!
+
+FOR HOSPITAL TABS:
+- Same principle: if tab text is garbled, click any element in that tab area
+- Tab elements are typically at the top of the view
+
+IMPORTANT: Do NOT wait more than 2 times. After 2 waits, use row-adjacent elements.
+
 === CRITICAL RULES ===
 
 1. NEVER click on the patient row - only REPORT their ID

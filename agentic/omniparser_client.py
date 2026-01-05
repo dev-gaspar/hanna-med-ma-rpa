@@ -30,8 +30,8 @@ class OmniParserClient:
     # Default model configuration
     DEFAULT_MODEL = "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df"
     DEFAULT_IMGSZ = 1024
-    DEFAULT_BOX_THRESHOLD = 0.05
-    DEFAULT_IOU_THRESHOLD = 0.1
+    DEFAULT_BOX_THRESHOLD = 0.03  # Lower for VDI (detects blurry text better)
+    DEFAULT_IOU_THRESHOLD = 0.15  # Higher to reduce duplicate boxes
 
     # Retry configuration for API calls
     MAX_RETRIES = 3
@@ -93,7 +93,7 @@ class OmniParserClient:
         logger.info(f"[OMNIPARSER] Initialized with model: {self.model[:50]}...")
 
     def parse_image(
-        self, image_data_url: str, screen_size: tuple = None
+        self, image_data_url: str, screen_size: tuple = None, imgsz_override: int = None
     ) -> ParsedScreen:
         """
         Parse an image and detect UI elements.
@@ -102,6 +102,7 @@ class OmniParserClient:
         Args:
             image_data_url: Image as data URL (data:image/png;base64,...)
             screen_size: Optional screen size (width, height) for coordinate scaling
+            imgsz_override: Optional override for imgsz (useful when image is upscaled)
 
         Returns:
             ParsedScreen with detected elements
@@ -110,18 +111,20 @@ class OmniParserClient:
             Exception: If all retry attempts fail
         """
         last_error = None
+        # Use override if provided, otherwise use instance default
+        imgsz = imgsz_override if imgsz_override is not None else self.imgsz
 
         for attempt in range(1, self.max_retries + 1):
             try:
                 logger.info(
-                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} - Sending image for analysis..."
+                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} - Sending image for analysis (imgsz={imgsz})..."
                 )
 
                 output = replicate.run(
                     self.model,
                     input={
                         "image": image_data_url,
-                        "imgsz": self.imgsz,
+                        "imgsz": imgsz,
                         "box_threshold": self.box_threshold,
                         "iou_threshold": self.iou_threshold,
                     },

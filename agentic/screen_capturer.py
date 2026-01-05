@@ -174,6 +174,97 @@ class ScreenCapturer:
         b64 = self.capture_with_mask_base64(rois, format)
         return f"data:image/{format.lower()};base64,{b64}"
 
+    def enhance_for_ocr(
+        self,
+        image: Image.Image,
+        upscale_factor: float = 2.0,
+        contrast_factor: float = 1.3,
+        sharpness_factor: float = 1.5,
+    ) -> Image.Image:
+        """
+        Enhance image for better OCR detection in VDI environments.
+
+        Applies upscaling, contrast enhancement, and sharpening to improve
+        text detection in low-resolution or compressed VDI screenshots.
+
+        Args:
+            image: PIL Image to enhance
+            upscale_factor: Scale factor for upscaling (default 2.0 = 2x size)
+            contrast_factor: Contrast multiplier (default 1.3 = 30% more contrast)
+            sharpness_factor: Sharpness multiplier (default 1.5 = 50% sharper)
+
+        Returns:
+            Enhanced PIL Image
+        """
+        from PIL import ImageEnhance
+
+        # Step 1: Upscale with high-quality interpolation
+        if upscale_factor > 1.0:
+            new_size = (
+                int(image.width * upscale_factor),
+                int(image.height * upscale_factor),
+            )
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+            logger.debug(f"[SCREEN] Upscaled to {new_size}")
+
+        # Step 2: Enhance contrast
+        if contrast_factor != 1.0:
+            enhancer = ImageEnhance.Contrast(image)
+            image = enhancer.enhance(contrast_factor)
+            logger.debug(f"[SCREEN] Contrast enhanced by {contrast_factor}x")
+
+        # Step 3: Sharpen
+        if sharpness_factor != 1.0:
+            enhancer = ImageEnhance.Sharpness(image)
+            image = enhancer.enhance(sharpness_factor)
+            logger.debug(f"[SCREEN] Sharpness enhanced by {sharpness_factor}x")
+
+        return image
+
+    def capture_with_mask_enhanced_base64(
+        self,
+        rois: List["ROI"],
+        enhance: bool = True,
+        upscale_factor: float = 2.0,
+        contrast_factor: float = 1.3,
+        sharpness_factor: float = 1.5,
+        format: str = "PNG",
+    ) -> str:
+        """
+        Capture with ROI mask, apply enhancements, and return as base64.
+
+        This is the recommended method for VDI environments where OCR struggles
+        with low resolution and compressed images.
+
+        Args:
+            rois: List of ROI regions to keep visible
+            enhance: Whether to apply OCR enhancement (default True)
+            upscale_factor: Scale factor for upscaling
+            contrast_factor: Contrast multiplier
+            sharpness_factor: Sharpness multiplier
+            format: Image format (PNG, JPEG)
+
+        Returns:
+            Base64 encoded enhanced image
+        """
+        screenshot = self.capture_with_mask(rois)
+
+        if enhance:
+            screenshot = self.enhance_for_ocr(
+                screenshot,
+                upscale_factor=upscale_factor,
+                contrast_factor=contrast_factor,
+                sharpness_factor=sharpness_factor,
+            )
+            logger.info("[SCREEN] Applied VDI OCR enhancement")
+
+            if self.save_debug_screenshots:
+                self._save_debug(screenshot, prefix="enhanced")
+
+        buffered = BytesIO()
+        screenshot.save(buffered, format=format)
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
 
 # Singleton instance for convenience
 _default_capturer: Optional[ScreenCapturer] = None

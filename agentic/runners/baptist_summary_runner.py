@@ -60,9 +60,11 @@ class BaptistSummaryRunner:
         self,
         max_steps: int = 30,
         step_delay: float = 1.5,
+        vdi_enhance: bool = True,  # Enable VDI image enhancement by default for Baptist
     ):
         self.max_steps = max_steps
         self.step_delay = step_delay
+        self.vdi_enhance = vdi_enhance  # Apply upscaling/contrast for VDI OCR
 
         # Components
         self.omniparser = get_omniparser_client()
@@ -198,13 +200,36 @@ class BaptistSummaryRunner:
 
             logger.info(f"[RUNNER] Phase 1 Step {step}/{MAX_PATIENT_STEPS}")
 
-            # Capture and parse screen
+            # Capture and parse screen (with optional VDI enhancement)
             if using_roi:
-                image_b64 = self.capturer.capture_with_mask_base64(rois)
-                parsed = self.omniparser.parse_image(
-                    f"data:image/png;base64,{image_b64}",
-                    self.capturer.get_screen_size(),
-                )
+                if self.vdi_enhance:
+                    # Apply enhancement: upscale 2x + contrast + sharpness
+                    upscale_factor = 2.0
+                    image_b64 = self.capturer.capture_with_mask_enhanced_base64(
+                        rois,
+                        enhance=True,
+                        upscale_factor=upscale_factor,
+                        contrast_factor=1.3,
+                        sharpness_factor=1.5,
+                    )
+                    # Get original screen size for coordinate mapping
+                    screen_size = self.capturer.get_screen_size()
+                    # Calculate dynamic imgsz based on upscaled resolution
+                    # Use max dimension of upscaled image, capped at 1920
+                    upscaled_max = int(max(screen_size) * upscale_factor)
+                    imgsz = min(upscaled_max, 1920)  # API max is 1920
+
+                    parsed = self.omniparser.parse_image(
+                        f"data:image/png;base64,{image_b64}",
+                        screen_size,  # Original size for coordinate scaling
+                        imgsz_override=imgsz,  # Dynamic imgsz for better detection
+                    )
+                else:
+                    image_b64 = self.capturer.capture_with_mask_base64(rois)
+                    parsed = self.omniparser.parse_image(
+                        f"data:image/png;base64,{image_b64}",
+                        self.capturer.get_screen_size(),
+                    )
             else:
                 parsed = self.omniparser.parse_screen()
                 image_b64 = self._get_image_base64_from_parsed(parsed)
@@ -445,13 +470,35 @@ class BaptistSummaryRunner:
 
             logger.info(f"[RUNNER] Step {self.current_step}/{self.max_steps}")
 
-            # Capture and parse
+            # Capture and parse (with optional VDI enhancement)
             if using_roi:
-                image_b64 = self.capturer.capture_with_mask_base64(rois)
-                parsed = self.omniparser.parse_image(
-                    f"data:image/png;base64,{image_b64}",
-                    self.capturer.get_screen_size(),
-                )
+                if self.vdi_enhance:
+                    # Apply enhancement: upscale 2x + contrast + sharpness
+                    upscale_factor = 2.0
+                    image_b64 = self.capturer.capture_with_mask_enhanced_base64(
+                        rois,
+                        enhance=True,
+                        upscale_factor=upscale_factor,
+                        contrast_factor=1.3,
+                        sharpness_factor=1.5,
+                    )
+                    # Get original screen size for coordinate mapping
+                    screen_size = self.capturer.get_screen_size()
+                    # Calculate dynamic imgsz based on upscaled resolution
+                    upscaled_max = int(max(screen_size) * upscale_factor)
+                    imgsz = min(upscaled_max, 1920)  # API max is 1920
+
+                    parsed = self.omniparser.parse_image(
+                        f"data:image/png;base64,{image_b64}",
+                        screen_size,  # Original size for coordinate scaling
+                        imgsz_override=imgsz,  # Dynamic imgsz for better detection
+                    )
+                else:
+                    image_b64 = self.capturer.capture_with_mask_base64(rois)
+                    parsed = self.omniparser.parse_image(
+                        f"data:image/png;base64,{image_b64}",
+                        self.capturer.get_screen_size(),
+                    )
             else:
                 parsed = self.omniparser.parse_screen()
                 image_b64 = self._get_image_base64_from_parsed(parsed)
