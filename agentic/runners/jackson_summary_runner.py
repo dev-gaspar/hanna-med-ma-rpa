@@ -247,11 +247,44 @@ class JacksonSummaryRunner:
             logger.warning("[RUNNER] Notes menu not found after handling modals")
             self._record_step("rpa", "click_notes", "Notes menu not found")
         else:
-            logger.info("[RUNNER] Clicked Notes menu")
-            self._record_step("rpa", "click_notes", "Clicked Notes menu: success")
+            logger.info("[RUNNER] First click on Notes menu registered")
+            self._record_step(
+                "rpa", "click_notes", "First click on Notes menu: success"
+            )
 
-        # Wait for notes tree to load
-        logger.info("[RUNNER] Waiting 5s for notes tree...")
+            # Wait for screen to fully stabilize before confirmation click
+            logger.info("[RUNNER] Waiting 5s for screen to stabilize...")
+            self.rpa.stoppable_sleep(5)
+            self.rpa.check_stop()
+
+            # Confirmation click on Notes to ensure it's properly selected
+            logger.info("[RUNNER] Confirmation click on Notes menu...")
+            notes_image = config.get_rpa_setting("images.jackson_notes_menu")
+            try:
+                location = pyautogui.locateOnScreen(notes_image, confidence=0.8)
+                if location:
+                    self.rpa.safe_click(location, "Notes Menu (confirmation)")
+                    logger.info("[RUNNER] Confirmation click on Notes: success")
+                    self._record_step(
+                        "rpa",
+                        "click_notes_confirm",
+                        "Confirmation click on Notes: success",
+                    )
+                else:
+                    logger.info(
+                        "[RUNNER] Notes already selected (not visible as button)"
+                    )
+                    self._record_step(
+                        "rpa", "click_notes_confirm", "Notes already active"
+                    )
+            except Exception as e:
+                logger.warning(f"[RUNNER] Confirmation click failed: {e}")
+                self._record_step(
+                    "rpa", "click_notes_confirm", f"Confirmation click failed: {e}"
+                )
+
+        # Wait for notes tree to fully load after confirmation
+        logger.info("[RUNNER] Waiting 5s for notes tree to load...")
         self.rpa.stoppable_sleep(5)
         self.rpa.check_stop()
 

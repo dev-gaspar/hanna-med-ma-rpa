@@ -74,7 +74,7 @@ a = Analysis(
         'agentic.agent_runner',
         'agentic.action_executor',
         'agentic.omniparser_client',
-        'agentic.screen_capture',
+        'agentic.screen_capturer',
         'agentic.models',
         # New Agentic submodules
         'agentic.core',
@@ -87,16 +87,9 @@ a = Analysis(
         'agentic.emr.jackson.tools',
         'agentic.runners',
         'agentic.runners.jackson_summary_runner',
-        # External AI dependencies - langchain (order matters!)
+        # External AI dependencies - langchain_core (actual modules that exist in v1.2.x)
         'langchain',
-        'langchain.globals',
-        'langchain.chains',
-        'langchain.schema',
-        'langchain.callbacks',
-        'langchain.callbacks.manager',
-        # langchain_core (must come after langchain)
         'langchain_core',
-        'langchain_core.globals',
         'langchain_core.messages',
         'langchain_core.messages.base',
         'langchain_core.messages.human',
@@ -109,8 +102,6 @@ a = Analysis(
         'langchain_core.language_models.chat_models',
         'langchain_core.load',
         'langchain_core.load.serializable',
-        'langchain_core.tracers',
-        'langchain_core.tracers.context',
         'langchain_core.runnables',
         'langchain_core.runnables.base',
         'langchain_core.callbacks',
@@ -125,9 +116,6 @@ a = Analysis(
         'google.genai',
         'google.genai.types',
         'google.genai.client',
-        # Legacy compatibility (may still be referenced)
-        'google.generativeai',
-        'google.ai.generativelanguage',
         # Core modules
         'core',
         'core.rpa_engine',
@@ -149,7 +137,41 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # OPTIMIZATION: Exclude heavy packages not used by the application
+    # These are optional dependencies of langchain-community that add HUGE build time
+    excludes=[
+        # Data science packages (NOT needed for RPA)
+        'pandas',
+        'scipy',
+        'sklearn',
+        'scikit-learn',
+        'matplotlib',
+        'matplotlib.pyplot',
+        'nltk',
+        'pyarrow',
+        'sympy',
+        # Database drivers (NOT needed)
+        'psycopg2',
+        'MySQLdb',
+        'pysqlite2',
+        'pymysql',
+        # Testing (NOT needed in production)
+        'pytest',
+        'unittest',
+        # Jupyter/IPython (NOT needed)
+        'IPython',
+        'jupyter',
+        'notebook',
+        # Other heavy optional deps
+        'tensorflow',
+        'torch',
+        'transformers',
+        'faiss',
+        'chromadb',
+        # Legacy google.generativeai (deprecated, using google.genai instead)
+        'google.generativeai',
+        'google.ai.generativelanguage',
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
