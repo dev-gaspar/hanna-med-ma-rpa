@@ -322,13 +322,14 @@ class BaptistSummaryFlow(BaseFlow):
     def _phase3_extract_content_via_pdf(self):
         """
         Phase 3: Extract report content by printing to PDF and reading the text.
+        Uses 2-second delays after each action for VDI modal stability.
 
         Flow:
         1. Click on report document to focus
         2. Click print button in PowerChart
         3. Enter x2 (confirm print dialog)
-        4. Wait 3 seconds
-        5. Type "baptis report" as filename
+        4. Wait for save dialog
+        5. Click on existing PDF file
         6. Enter to save
         7. Left arrow + Enter to confirm overwrite if exists
         8. Extract text from PDF
@@ -350,7 +351,7 @@ class BaptistSummaryFlow(BaseFlow):
             )
             screen_w, screen_h = pyautogui.size()
             pyautogui.click(screen_w // 2, screen_h // 2)
-        stoppable_sleep(1)
+        stoppable_sleep(2)
 
         # Step 2: Click print button
         logger.info("[BAPTIST SUMMARY] Step 2: Clicking print button...")
@@ -368,9 +369,9 @@ class BaptistSummaryFlow(BaseFlow):
         # Step 3: Enter x2 to confirm print dialogs
         logger.info("[BAPTIST SUMMARY] Step 3: Confirming print dialogs (Enter x2)...")
         pydirectinput.press("enter")
-        stoppable_sleep(0.5)
+        stoppable_sleep(2)
         pydirectinput.press("enter")
-        stoppable_sleep(4)  # Wait for save dialog to appear
+        stoppable_sleep(4)  # Extra wait for save dialog to appear
 
         # Step 4: Ctrl+Alt to exit VDI focus (save dialog is on local machine)
         logger.info("[BAPTIST SUMMARY] Step 4: Exiting VDI focus with Ctrl+Alt...")
@@ -378,7 +379,7 @@ class BaptistSummaryFlow(BaseFlow):
         pydirectinput.keyDown("alt")
         pydirectinput.keyUp("alt")
         pydirectinput.keyUp("ctrl")
-        stoppable_sleep(1)
+        stoppable_sleep(2)
 
         # Step 5: Click on existing PDF file to select it for replacement
         logger.info("[BAPTIST SUMMARY] Step 5: Clicking on existing PDF file...")
@@ -393,21 +394,21 @@ class BaptistSummaryFlow(BaseFlow):
             logger.warning(
                 "[BAPTIST SUMMARY] PDF file image not found, continuing anyway..."
             )
-        stoppable_sleep(1)
+        stoppable_sleep(2)
 
         # Step 6: Press Enter to confirm file selection
         logger.info(
             "[BAPTIST SUMMARY] Step 6: Pressing Enter to confirm file selection..."
         )
         pydirectinput.press("enter")
-        stoppable_sleep(1)
+        stoppable_sleep(2)
 
         # Step 7: Left arrow to select 'Replace' option
         logger.info(
             "[BAPTIST SUMMARY] Step 7: Pressing Left arrow to select Replace..."
         )
         pydirectinput.press("left")
-        stoppable_sleep(0.3)
+        stoppable_sleep(2)
 
         # Step 8: Enter to confirm replacement
         logger.info(
@@ -416,8 +417,8 @@ class BaptistSummaryFlow(BaseFlow):
         pydirectinput.press("enter")
         stoppable_sleep(3)  # Wait for PDF to be saved
 
-        # Step 8: Extract text from PDF
-        logger.info("[BAPTIST SUMMARY] Step 8: Extracting text from PDF...")
+        # Step 9: Extract text from PDF
+        logger.info("[BAPTIST SUMMARY] Step 9: Extracting text from PDF...")
         self._extract_pdf_content()
 
     def _extract_pdf_content(self):
