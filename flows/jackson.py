@@ -84,7 +84,7 @@ class JacksonFlow(BaseFlow):
 
         jackson_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.tab"),
             description="Jackson Tab",
         )
         if not jackson_tab:
@@ -104,7 +104,7 @@ class JacksonFlow(BaseFlow):
 
         powered_jackson = self.wait_for_element(
             config.get_rpa_setting("images.jackson_powered"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.powered"),
             description="Powered Jackson",
             confidence=0.9,
         )
@@ -125,7 +125,7 @@ class JacksonFlow(BaseFlow):
 
         open_download = self.wait_for_element(
             config.get_rpa_setting("images.jackson_open_download"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.download"),
             description="Open Download",
             confidence=0.9,
         )
@@ -146,7 +146,7 @@ class JacksonFlow(BaseFlow):
 
         username_input = self.wait_for_element(
             config.get_rpa_setting("images.jackson_username"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.username"),
             description="Username Input",
         )
         if not username_input:
@@ -168,7 +168,7 @@ class JacksonFlow(BaseFlow):
 
         password_input = self.wait_for_element(
             config.get_rpa_setting("images.jackson_password"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.password"),
             description="Password Input",
             confidence=0.9,
         )
@@ -204,7 +204,7 @@ class JacksonFlow(BaseFlow):
 
         login_ok = self.wait_for_element(
             config.get_rpa_setting("images.jackson_login_ok"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.login_ok"),
             description="Login OK button",
         )
         if not login_ok:
@@ -278,7 +278,7 @@ class JacksonFlow(BaseFlow):
             config.get_rpa_setting("images.jackson_patient_list"),
             target_description="Patient List Tab",
             handlers=handlers,
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.patient_list"),
         )
         if not patient_list:
             raise Exception("Patient List Tab not found")
@@ -297,7 +297,7 @@ class JacksonFlow(BaseFlow):
 
         hospital_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_hospital_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.hospital_tab"),
             description="Hospital Tab",
         )
         if not hospital_tab:
@@ -327,7 +327,7 @@ class JacksonFlow(BaseFlow):
 
         close_button = self.wait_for_element(
             config.get_rpa_setting("images.jackson_cerner_close"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.cerner_close"),
             description="Cerner Close button",
             confidence=0.95,
         )
@@ -348,7 +348,7 @@ class JacksonFlow(BaseFlow):
 
         vdi_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_vdi_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("jackson.vdi_tab"),
             description="VDI Desktop Tab",
         )
         if not vdi_tab:

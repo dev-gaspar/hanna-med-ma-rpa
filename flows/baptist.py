@@ -76,7 +76,7 @@ class BaptistFlow(BaseFlow):
 
         vdi_icon = self.wait_for_element(
             config.get_rpa_setting("images.vdi_icon"),
-            timeout=config.get_timeout("vdi_open", 30),
+            timeout=config.get_timeout("common.vdi_open"),
             description="VDI Desktop icon",
         )
         if not vdi_icon:
@@ -96,7 +96,7 @@ class BaptistFlow(BaseFlow):
 
         edge_icon = self.wait_for_element(
             config.get_rpa_setting("images.edge_icon"),
-            timeout=config.get_timeout("edge_open", 400),
+            timeout=config.get_timeout("baptist.edge_open"),
             description="Edge icon",
         )
 
@@ -278,7 +278,7 @@ class BaptistFlow(BaseFlow):
             target_image_path=config.get_rpa_setting("images.pineapple_menu"),
             target_description="Pineapple Connect menu",
             handlers=obstacle_handlers,
-            timeout=config.get_timeout("pineapple_connect", 300),
+            timeout=config.get_timeout("baptist.pineapple_connect"),
         )
 
         if not menu_icon:
@@ -346,7 +346,7 @@ class BaptistFlow(BaseFlow):
 
         cerner = self.wait_for_element(
             config.get_rpa_setting("images.cerner"),
-            timeout=config.get_timeout("cerner_open", 120),
+            timeout=config.get_timeout("baptist.cerner_open"),
             description="Cerner BHSF",
         )
         if not cerner:
@@ -383,7 +383,7 @@ class BaptistFlow(BaseFlow):
             target_image_path=config.get_rpa_setting("images.favorites_tab"),
             target_description="Favorites tab",
             handlers=obstacle_handlers,
-            timeout=config.get_timeout("cerner_login", 120),
+            timeout=config.get_timeout("baptist.cerner_login"),
         )
         if not favorites_tab:
             raise Exception("Cerner login did not complete")
@@ -418,7 +418,7 @@ class BaptistFlow(BaseFlow):
 
         powerchart = self.wait_for_element(
             config.get_rpa_setting("images.powerchart"),
-            timeout=config.get_timeout("powerchart_open", 120),
+            timeout=config.get_timeout("baptist.powerchart_open"),
             description="Powerchart P574 BHS_FL",
         )
         if not powerchart:
@@ -438,7 +438,7 @@ class BaptistFlow(BaseFlow):
 
         patient_list_btn = self.wait_for_element(
             config.get_rpa_setting("images.patient_list"),
-            timeout=config.get_timeout("powerchart_open", 120),
+            timeout=config.get_timeout("baptist.powerchart_open"),
             description="Patient List button",
         )
         if not patient_list_btn:
@@ -535,7 +535,7 @@ class BaptistFlow(BaseFlow):
 
         horizon_menu = self.wait_for_element(
             config.get_rpa_setting("images.horizon_menu"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             confidence=0.9,
             description="Horizon menu",
         )
@@ -547,7 +547,7 @@ class BaptistFlow(BaseFlow):
 
         close_session = self.wait_for_element(
             config.get_rpa_setting("images.horizon_close"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             description="close session",
         )
         if not close_session:
@@ -565,7 +565,7 @@ class BaptistFlow(BaseFlow):
 
         accept_btn = self.wait_for_element(
             config.get_rpa_setting("images.accept_alert"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             description="Accept button",
         )
         if not accept_btn:
