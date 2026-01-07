@@ -7,6 +7,7 @@ from datetime import datetime
 import pyautogui
 
 from config import config
+from logger import logger
 from core.rpa_engine import rpa_state
 from core.s3_client import get_s3_client
 from core.vdi_input import stoppable_sleep
@@ -19,6 +20,7 @@ class BaptistFlow(BaseFlow):
 
     FLOW_NAME = "Baptist Health"
     FLOW_TYPE = "baptist_health_patient_list_capture"
+    EMR_TYPE = "BAPTIST"
 
     def __init__(self):
         super().__init__()
@@ -57,11 +59,11 @@ class BaptistFlow(BaseFlow):
             "trigger_type": self.trigger_type,
         }
         response = self._send_to_list_webhook_n8n(payload)
-        print(f"\n[N8N] Notification sent - Status: {response.status_code}")
+        logger.info(f"[N8N] Notification sent - Status: {response.status_code}")
 
-        print(f"[SUCCESS] Total screenshots: {len(screenshots)}")
+        logger.info(f"[SUCCESS] Total screenshots: {len(screenshots)}")
         for idx, screenshot in enumerate(screenshots, 1):
-            print(
+            logger.info(
                 f"[SUCCESS] {idx}. {screenshot['display_name']} - "
                 f"{screenshot['hospital_name']}: {screenshot['screenshot_url']}"
             )
@@ -72,11 +74,11 @@ class BaptistFlow(BaseFlow):
     def step_1_open_vdi_desktop(self):
         """Open VDI Desktop."""
         self.set_step("STEP_1_OPEN_VDI")
-        print("\n[STEP 1] Opening VDI Desktop")
+        logger.info("[STEP 1] Opening VDI Desktop")
 
         vdi_icon = self.wait_for_element(
             config.get_rpa_setting("images.vdi_icon"),
-            timeout=config.get_timeout("vdi_open", 30),
+            timeout=config.get_timeout("common.vdi_open"),
             description="VDI Desktop icon",
         )
         if not vdi_icon:
@@ -86,23 +88,23 @@ class BaptistFlow(BaseFlow):
             raise Exception("Failed to click on VDI Desktop")
 
         stoppable_sleep(5)
-        print("[STEP 1] VDI Desktop started")
+        logger.info("[STEP 1] VDI Desktop started")
         return True
 
     def step_2_open_edge(self, is_retry: bool = False):
         """Open Microsoft Edge with robust fallback including full flow restart."""
         self.set_step("STEP_2_OPEN_EDGE")
-        print("\n[STEP 2] Opening Edge")
+        logger.info("[STEP 2] Opening Edge")
 
         edge_icon = self.wait_for_element(
             config.get_rpa_setting("images.edge_icon"),
-            timeout=config.get_timeout("edge_open", 300),
+            timeout=config.get_timeout("baptist.edge_open"),
             description="Edge icon",
         )
 
         # Fallback Level 1: Click center of screen and Alt+F4 to close windows
         if not edge_icon:
-            print(
+            logger.warning(
                 "[STEP 2] Edge icon not found - Fallback Level 1: clicking center and Alt+F4"
             )
             edge_icon = self._fallback_click_center_and_close_windows()
@@ -113,7 +115,7 @@ class BaptistFlow(BaseFlow):
                 # Already retried once, fail now
                 raise Exception("Edge icon not found after full flow restart")
 
-            print(
+            logger.error(
                 "[STEP 2] Edge still not found - Fallback Level 2: full cleanup and restart"
             )
             self._fallback_full_cleanup_and_restart()
@@ -121,7 +123,7 @@ class BaptistFlow(BaseFlow):
 
         edge_center = pyautogui.center(edge_icon)
         pyautogui.doubleClick(edge_center)
-        print("[STEP 2] Edge opened")
+        logger.info("[STEP 2] Edge opened")
         return True
 
     def _fallback_click_center_and_close_windows(self):
@@ -129,7 +131,7 @@ class BaptistFlow(BaseFlow):
         Fallback Level 1: Click center of screen multiple times and use Alt+F4
         to close any blocking windows until Edge icon is visible.
         """
-        print("[FALLBACK L1] Clicking center of screen and closing windows...")
+        logger.info("[FALLBACK L1] Clicking center of screen and closing windows...")
         screen_w, screen_h = pyautogui.size()
         center_x, center_y = screen_w // 2, screen_h // 2
 
@@ -138,14 +140,16 @@ class BaptistFlow(BaseFlow):
             self.check_stop()
 
             # Click center of screen to ensure focus
-            print(f"[FALLBACK L1] Attempt {attempt + 1}: clicking center of screen")
+            logger.debug(
+                f"[FALLBACK L1] Attempt {attempt + 1}: clicking center of screen"
+            )
             pyautogui.click(center_x, center_y)
             stoppable_sleep(0.3)
             pyautogui.click(center_x, center_y)
             stoppable_sleep(0.3)
 
             # Close current window with Alt+F4
-            print(f"[FALLBACK L1] Pressing Alt+F4...")
+            logger.debug(f"[FALLBACK L1] Pressing Alt+F4...")
             pyautogui.hotkey("alt", "F4")
             stoppable_sleep(0.5)
 
@@ -160,14 +164,14 @@ class BaptistFlow(BaseFlow):
                     confidence=self.confidence,
                 )
                 if edge_check:
-                    print(
+                    logger.info(
                         f"[FALLBACK L1] Edge icon found after {attempt + 1} attempt(s)"
                     )
                     return edge_check
             except Exception:
                 pass  # Image not found, continue
 
-        print("[FALLBACK L1] Edge icon still not found after all attempts")
+        logger.warning("[FALLBACK L1] Edge icon still not found after all attempts")
         return None
 
     def _fallback_full_cleanup_and_restart(self):
@@ -175,30 +179,30 @@ class BaptistFlow(BaseFlow):
         Fallback Level 2: Close Horizon session completely and restart from step 1.
         This is the last resort before failing the flow.
         """
-        print("[FALLBACK L2] Performing full cleanup and flow restart...")
+        logger.warning("[FALLBACK L2] Performing full cleanup and flow restart...")
 
         try:
             # Close Horizon session
             self.step_13_close_horizon()
         except Exception as e:
-            print(f"[FALLBACK L2] Error closing Horizon (continuing): {e}")
+            logger.error(f"[FALLBACK L2] Error closing Horizon (continuing): {e}")
 
         try:
             # Accept any alerts
             self.step_14_accept_alert()
         except Exception as e:
-            print(f"[FALLBACK L2] Error accepting alert (continuing): {e}")
+            logger.error(f"[FALLBACK L2] Error accepting alert (continuing): {e}")
 
         stoppable_sleep(2)
 
         # Restart from step 1
-        print("[FALLBACK L2] Restarting flow from step 1...")
+        logger.warning("[FALLBACK L2] Restarting flow from step 1...")
         self.step_1_open_vdi_desktop()
         self.step_2_open_edge(is_retry=True)  # Mark as retry to prevent infinite loop
 
     def _close_all_windows_and_show_desktop(self):
         """Close all open windows using Alt+F4 until desktop is visible."""
-        print("[FALLBACK] Closing all open windows...")
+        logger.info("[FALLBACK] Closing all open windows...")
 
         max_attempts = 10  # Maximum windows to close
         windows_closed = 0
@@ -213,7 +217,7 @@ class BaptistFlow(BaseFlow):
                     confidence=self.confidence,
                 )
                 if edge_check:
-                    print(
+                    logger.info(
                         f"[FALLBACK] Desktop reached after closing {windows_closed} window(s)"
                     )
                     return
@@ -221,7 +225,7 @@ class BaptistFlow(BaseFlow):
                 pass  # Image not found, continue closing
 
             # Close the current window
-            print(f"[FALLBACK] Closing window {attempt + 1}...")
+            logger.debug(f"[FALLBACK] Closing window {attempt + 1}...")
             pyautogui.hotkey("alt", "F4")
             windows_closed += 1
             stoppable_sleep(0.5)
@@ -235,11 +239,11 @@ class BaptistFlow(BaseFlow):
             pyautogui.press("n")
             stoppable_sleep(0.3)
 
-        print(f"[FALLBACK] Closed {windows_closed} windows")
+        logger.info(f"[FALLBACK] Closed {windows_closed} windows")
 
     def _handler_edge_login(self, location_of_email_field):
         """Handle Edge login page."""
-        print("[HANDLER] Handling Edge login")
+        logger.info("[HANDLER] Handling Edge login")
 
         self.safe_click(location_of_email_field, "email field")
         stoppable_sleep(1)
@@ -260,12 +264,12 @@ class BaptistFlow(BaseFlow):
         stoppable_sleep(3)
         pyautogui.press("enter")
         stoppable_sleep(5)
-        print("[HANDLER] Login completed")
+        logger.info("[HANDLER] Login completed")
 
     def step_3_wait_pineapple_connect(self):
         """Wait for pineappleconnect.net to open, handling obstacles."""
         self.set_step("STEP_3_PINEAPPLE")
-        print("\n[STEP 3] Waiting for Pineapple Connect")
+        logger.info("[STEP 3] Waiting for Pineapple Connect")
 
         obstacle_handlers = {
             config.get_rpa_setting("images.email_input"): (
@@ -278,18 +282,18 @@ class BaptistFlow(BaseFlow):
             target_image_path=config.get_rpa_setting("images.pineapple_menu"),
             target_description="Pineapple Connect menu",
             handlers=obstacle_handlers,
-            timeout=config.get_timeout("pineapple_connect", 300),
+            timeout=config.get_timeout("baptist.pineapple_connect"),
         )
 
         if not menu_icon:
             raise Exception("Pineapple Connect did not load")
-        print("[STEP 3] Pineapple Connect loaded")
+        logger.info("[STEP 3] Pineapple Connect loaded")
         return True
 
     def step_4_open_menu(self):
         """Open 3-dots menu."""
         self.set_step("STEP_4_MENU")
-        print("\n[STEP 4] Opening menu")
+        logger.info("[STEP 4] Opening menu")
 
         menu_icon = self.wait_for_element(
             config.get_rpa_setting("images.pineapple_menu"),
@@ -310,13 +314,13 @@ class BaptistFlow(BaseFlow):
         if not modal:
             raise Exception("Modal did not open")
 
-        print("[STEP 4] Menu opened")
+        logger.info("[STEP 4] Menu opened")
         return True
 
     def step_5_scroll_modal(self):
         """Scroll in the modal."""
         self.set_step("STEP_5_SCROLL")
-        print("\n[STEP 5] Scrolling in modal")
+        logger.info("[STEP 5] Scrolling in modal")
 
         modal = self.wait_for_element(
             config.get_rpa_setting("images.pineapple_modal"),
@@ -336,17 +340,17 @@ class BaptistFlow(BaseFlow):
             stoppable_sleep(0.2)
 
         stoppable_sleep(1)
-        print("[STEP 5] Scroll completed")
+        logger.info("[STEP 5] Scroll completed")
         return True
 
     def step_6_click_cerner(self):
         """Click on Cerner BHSF."""
         self.set_step("STEP_6_CERNER")
-        print("\n[STEP 6] Searching for Cerner BHSF")
+        logger.info("[STEP 6] Searching for Cerner BHSF")
 
         cerner = self.wait_for_element(
             config.get_rpa_setting("images.cerner"),
-            timeout=config.get_timeout("cerner_open", 120),
+            timeout=config.get_timeout("baptist.cerner_open"),
             description="Cerner BHSF",
         )
         if not cerner:
@@ -356,12 +360,12 @@ class BaptistFlow(BaseFlow):
             raise Exception("Failed to click on Cerner")
 
         stoppable_sleep(2)
-        print("[STEP 6] Cerner opened")
+        logger.info("[STEP 6] Cerner opened")
         return True
 
     def _handler_log_on_cerner(self, location):
         """Click on the 'Log On to Cerner' button with delay to handle auto-redirect."""
-        print("[HANDLER] Waiting before clicking 'Log On to Cerner'...")
+        logger.debug("[HANDLER] Waiting before clicking 'Log On to Cerner'...")
         # Wait 1 second before clicking to handle cases where page auto-redirects
         stoppable_sleep(1)
         self.safe_click(location, "Log On to Cerner")
@@ -370,7 +374,7 @@ class BaptistFlow(BaseFlow):
     def step_7_wait_cerner_login(self):
         """Wait for automatic login to Cerner."""
         self.set_step("STEP_7_CERNER_LOGIN")
-        print("\n[STEP 7] Waiting for Cerner login")
+        logger.info("[STEP 7] Waiting for Cerner login")
 
         obstacle_handlers = {
             config.get_rpa_setting("images.log_on_cerner"): (
@@ -383,18 +387,18 @@ class BaptistFlow(BaseFlow):
             target_image_path=config.get_rpa_setting("images.favorites_tab"),
             target_description="Favorites tab",
             handlers=obstacle_handlers,
-            timeout=config.get_timeout("cerner_login", 120),
+            timeout=config.get_timeout("baptist.cerner_login"),
         )
         if not favorites_tab:
             raise Exception("Cerner login did not complete")
 
-        print("[STEP 7] Session started in Cerner")
+        logger.info("[STEP 7] Session started in Cerner")
         return True
 
     def step_8_click_favorites(self):
         """Click on Favorites."""
         self.set_step("STEP_8_FAVORITES")
-        print("\n[STEP 8] Opening Favorites")
+        logger.info("[STEP 8] Opening Favorites")
 
         favorites = self.wait_for_element(
             config.get_rpa_setting("images.favorites_tab"),
@@ -408,17 +412,17 @@ class BaptistFlow(BaseFlow):
             raise Exception("Failed to open Favorites")
 
         stoppable_sleep(2)
-        print("[STEP 8] Favorites opened")
+        logger.info("[STEP 8] Favorites opened")
         return True
 
     def step_9_click_powerchart(self):
         """Click on Powerchart P574 BHS_FL."""
         self.set_step("STEP_9_POWERCHART")
-        print("\n[STEP 9] Searching for PowerChart")
+        logger.info("[STEP 9] Searching for PowerChart")
 
         powerchart = self.wait_for_element(
             config.get_rpa_setting("images.powerchart"),
-            timeout=config.get_timeout("powerchart_open", 120),
+            timeout=config.get_timeout("baptist.powerchart_open"),
             description="Powerchart P574 BHS_FL",
         )
         if not powerchart:
@@ -428,29 +432,29 @@ class BaptistFlow(BaseFlow):
             raise Exception("Failed to click on PowerChart")
 
         stoppable_sleep(5)
-        print("[STEP 9] PowerChart downloaded")
+        logger.info("[STEP 9] PowerChart downloaded")
         return True
 
     def step_10_wait_powerchart_open(self):
         """Wait for PowerChart to open."""
         self.set_step("STEP_10_WAIT_POWERCHART")
-        print("\n[STEP 10] Waiting for PowerChart to open")
+        logger.info("[STEP 10] Waiting for PowerChart to open")
 
         patient_list_btn = self.wait_for_element(
             config.get_rpa_setting("images.patient_list"),
-            timeout=config.get_timeout("powerchart_open", 120),
+            timeout=config.get_timeout("baptist.powerchart_open"),
             description="Patient List button",
         )
         if not patient_list_btn:
             raise Exception("PowerChart did not open correctly")
 
-        print("[STEP 10] PowerChart opened")
+        logger.info("[STEP 10] PowerChart opened")
         return True
 
     def step_11_capture_patient_lists(self):
-        """Capture patient list from configured hospitals."""
+        """Capture patient list from configured hospitals with masking and enhancement."""
         self.set_step("STEP_11_CAPTURE_SCREENSHOTS")
-        print("\n[STEP 11] Capturing patient lists")
+        logger.info("[STEP 11] Capturing patient lists")
         screenshots = []
 
         patient_list_btn = self.wait_for_element(
@@ -463,8 +467,16 @@ class BaptistFlow(BaseFlow):
             raise Exception("Patient List not found")
         stoppable_sleep(3)
 
+        # Load ROIs from config using base class method
+        rois = self._get_rois("patient_finder")
+
         # Get hospitals from configuration
         hospitals = config.get_hospitals()
+
+        # Enter fullscreen ONCE at the beginning for all captures
+        self._click_fullscreen()
+        stoppable_sleep(3)
+        logger.info("[STEP 11] Entered fullscreen mode for all captures")
 
         for idx, hospital in enumerate(hospitals, 1):
             hospital_full_name = hospital.get("name", f"Unknown Hospital {idx}")
@@ -472,16 +484,12 @@ class BaptistFlow(BaseFlow):
             hospital_index = hospital.get("index", idx)
             tab_image = hospital.get("tab_image")
 
-            print(f"\n[STEP 11.{idx}] Processing {display_name} - {hospital_full_name}")
+            logger.info(
+                f"[STEP 11.{idx}] Processing {display_name} - {hospital_full_name}"
+            )
 
-            # First hospital is already visible
-            if idx == 1:
-                screenshot_data = self.s3_client.capture_screenshot_for_hospital(
-                    hospital_full_name, display_name, hospital_index, self.execution_id
-                )
-                screenshots.append(screenshot_data)
-            else:
-                # Switch to other hospitals if tab_image is configured
+            # For hospitals 2+, click on the tab (using fullscreen tab images)
+            if idx > 1:
                 if tab_image:
                     hospital_tab = self.wait_for_element(
                         tab_image,
@@ -492,50 +500,61 @@ class BaptistFlow(BaseFlow):
                     if hospital_tab:
                         self.safe_click(hospital_tab, f"{display_name} tab")
                         stoppable_sleep(2)
-                        screenshot_data = (
-                            self.s3_client.capture_screenshot_for_hospital(
-                                hospital_full_name,
-                                display_name,
-                                hospital_index,
-                                self.execution_id,
-                            )
-                        )
-                        screenshots.append(screenshot_data)
                     else:
-                        print(f"[STEP 11.{idx}] {display_name} tab not found, skipping")
+                        logger.warning(
+                            f"[STEP 11.{idx}] {display_name} tab not found, skipping"
+                        )
+                        continue
                 else:
-                    print(
+                    logger.warning(
                         f"[STEP 11.{idx}] No tab image configured for {display_name}, skipping"
                     )
+                    continue
 
-        print(f"\n[STEP 11] Captures completed ({len(screenshots)} hospitals)")
+            # Capture screenshot (already in fullscreen)
+            screenshot_data = self.s3_client.capture_screenshot_with_processing(
+                hospital_full_name,
+                display_name,
+                hospital_index,
+                self.execution_id,
+                rois=rois,
+                enhance=True,  # Baptist: mask + VDI enhancement
+            )
+            screenshots.append(screenshot_data)
+
+        # Exit fullscreen ONCE at the end
+        self._click_normalscreen()
+        stoppable_sleep(2)
+        logger.info("[STEP 11] Exited fullscreen mode")
+
+        logger.info(f"[STEP 11] Captures completed ({len(screenshots)} hospitals)")
         return screenshots
 
     def step_12_close_powerchart(self):
         """Close PowerChart and browser."""
         self.set_step("STEP_12_CLOSE_POWERCHART")
-        print("\n[STEP 12] Closing PowerChart and Edge")
+        logger.info("[STEP 12] Closing PowerChart and Edge")
 
         pyautogui.hotkey("alt", "f4")
-        print("[STEP 12] PowerChart closed")
+        logger.info("[STEP 12] PowerChart closed")
         stoppable_sleep(5)
 
         pyautogui.hotkey("alt", "f4")
-        print("[STEP 12] Edge closed")
+        logger.info("[STEP 12] Edge closed")
         stoppable_sleep(5)
         return True
 
     def step_13_close_horizon(self):
         """Close Horizon Client."""
         self.set_step("STEP_13_CLOSE_HORIZON")
-        print("\n[STEP 13] Closing Horizon")
+        logger.info("[STEP 13] Closing Horizon")
 
         pyautogui.hotkey("ctrl", "alt")
         stoppable_sleep(0.5)
 
         horizon_menu = self.wait_for_element(
             config.get_rpa_setting("images.horizon_menu"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             confidence=0.9,
             description="Horizon menu",
         )
@@ -547,7 +566,7 @@ class BaptistFlow(BaseFlow):
 
         close_session = self.wait_for_element(
             config.get_rpa_setting("images.horizon_close"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             description="close session",
         )
         if not close_session:
@@ -555,17 +574,17 @@ class BaptistFlow(BaseFlow):
 
         self.safe_click(close_session, "close session")
         stoppable_sleep(1)
-        print("[STEP 13] Session closed")
+        logger.info("[STEP 13] Session closed")
         return True
 
     def step_14_accept_alert(self):
         """Accept alert."""
         self.set_step("STEP_14_ACCEPT_ALERT")
-        print("\n[STEP 14] Accepting alert")
+        logger.info("[STEP 14] Accepting alert")
 
         accept_btn = self.wait_for_element(
             config.get_rpa_setting("images.accept_alert"),
-            timeout=config.get_timeout("horizon_close", 120),
+            timeout=config.get_timeout("baptist.horizon_close"),
             description="Accept button",
         )
         if not accept_btn:
@@ -573,11 +592,11 @@ class BaptistFlow(BaseFlow):
 
         self.safe_click(accept_btn, "Accept button")
         stoppable_sleep(1)
-        print("[STEP 14] Alert accepted")
+        logger.info("[STEP 14] Alert accepted")
         return True
 
     def step_15_return_to_start(self):
         """Confirm return to starting point."""
         self.set_step("STEP_15_RETURN")
-        print("\n[STEP 15] Back at VDI Desktop")
+        logger.info("[STEP 15] Back at VDI Desktop")
         return True

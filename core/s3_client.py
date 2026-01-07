@@ -3,9 +3,11 @@ S3 Client - AWS S3 operations for RPA.
 Handles screenshot uploads, PDF uploads, and presigned URL generation.
 """
 
+import base64
 import os
 from datetime import datetime
 from io import BytesIO
+from typing import List, Optional
 
 import boto3
 import pyautogui
@@ -107,6 +109,79 @@ class S3Client:
             raise Exception("AWS S3 prefix not configured")
 
         img_buffer = self.take_screenshot()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{self.s3_prefix}/{execution_id}/patient-list_{display_name}_{timestamp}.png"
+        self.upload_image(img_buffer, filename)
+        image_url = self.generate_presigned_url(filename)
+
+        return {
+            "hospital_name": hospital_full_name,
+            "display_name": display_name,
+            "hospital_index": hospital_index,
+            "screenshot_url": image_url,
+            "timestamp": timestamp,
+            "filename": filename,
+        }
+
+    def capture_screenshot_with_processing(
+        self,
+        hospital_full_name: str,
+        display_name: str,
+        hospital_index: int,
+        execution_id: str,
+        rois: Optional[List] = None,
+        enhance: bool = False,
+    ) -> dict:
+        """
+        Capture screenshot with optional ROI masking and VDI enhancement.
+
+        Args:
+            hospital_full_name: Full name of the hospital
+            display_name: Display name for the screenshot
+            hospital_index: Index of the hospital
+            execution_id: Unique execution ID
+            rois: List of ROI objects for masking (from agentic.models)
+            enhance: Whether to apply VDI enhancement (upscale, contrast, sharpness)
+
+        Returns:
+            Dict with screenshot metadata and presigned URL
+        """
+        from agentic.screen_capturer import ScreenCapturer
+
+        print(
+            f"[SCREENSHOT] Capturing {display_name} - {hospital_full_name} (processed)"
+        )
+
+        if not self.s3_prefix:
+            raise Exception("AWS S3 prefix not configured")
+
+        capturer = ScreenCapturer()
+
+        if rois:
+            if enhance:
+                # Apply ROI mask + VDI enhancement (upscale 2x, contrast, sharpness)
+                image_b64 = capturer.capture_with_mask_enhanced_base64(
+                    rois,
+                    enhance=True,
+                    upscale_factor=2.0,
+                    contrast_factor=1.3,
+                    sharpness_factor=1.5,
+                )
+                print(
+                    f"[SCREENSHOT] Applied ROI mask ({len(rois)} regions) + VDI enhancement"
+                )
+            else:
+                # Apply ROI mask only
+                image_b64 = capturer.capture_with_mask_base64(rois)
+                print(f"[SCREENSHOT] Applied ROI mask ({len(rois)} regions)")
+
+            # Convert base64 to BytesIO for upload
+            img_data = base64.b64decode(image_b64)
+            img_buffer = BytesIO(img_data)
+        else:
+            # No processing, use standard screenshot
+            img_buffer = self.take_screenshot()
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{self.s3_prefix}/{execution_id}/patient-list_{display_name}_{timestamp}.png"
         self.upload_image(img_buffer, filename)

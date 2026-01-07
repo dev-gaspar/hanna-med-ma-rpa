@@ -111,7 +111,7 @@ class StewardFlow(BaseFlow):
 
         steward_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.tab"),
             description="Steward Tab",
         )
         if not steward_tab:
@@ -131,7 +131,7 @@ class StewardFlow(BaseFlow):
 
         favorite = self.wait_for_element(
             config.get_rpa_setting("images.steward_favorite"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.favorite"),
             description="Favorite Steward",
         )
         if not favorite:
@@ -151,7 +151,7 @@ class StewardFlow(BaseFlow):
 
         meditech = self.wait_for_element(
             config.get_rpa_setting("images.steward_meditech"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.meditech"),
             description="Meditech",
         )
         if not meditech:
@@ -175,7 +175,7 @@ class StewardFlow(BaseFlow):
         # --- PHASE 1: LOGIN WINDOW (EMAIL) ---
         login_window = self.wait_for_element(
             config.get_rpa_setting("images.steward_login_window"),
-            timeout=120,
+            timeout=config.get_timeout("steward.login_window"),
             description="Login Window",
         )
 
@@ -205,7 +205,7 @@ class StewardFlow(BaseFlow):
         # Wait and locate field BEFORE starting synchronization
         password_window = self.wait_for_element(
             config.get_rpa_setting("images.steward_password_window"),
-            timeout=120,
+            timeout=config.get_timeout("steward.password_window"),
             description="Password Input Field",
         )
         if not password_window:
@@ -283,7 +283,7 @@ class StewardFlow(BaseFlow):
         # Now proceed with normal session opening
         sesion_meditech = self.wait_for_element(
             config.get_rpa_setting("images.steward_sesion_meditech"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.session"),
             description="Meditech Session",
         )
         if not sesion_meditech:
@@ -407,7 +407,7 @@ class StewardFlow(BaseFlow):
 
         menu = self.wait_for_element(
             config.get_rpa_setting("images.steward_load_menu_5"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.menu"),
             description="Menu (step 5)",
         )
         if not menu:
@@ -434,7 +434,7 @@ class StewardFlow(BaseFlow):
             config.get_rpa_setting("images.steward_load_menu_6"),
             target_description="Menu (step 6)",
             handlers=self._get_sign_list_handlers(),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.menu"),
         )
         if not menu:
             raise Exception("Menu (step 6) not found")
@@ -482,7 +482,7 @@ class StewardFlow(BaseFlow):
 
         lista = self.wait_for_element(
             config.get_rpa_setting("images.steward_lista"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.lista"),
             description="Lista",
         )
         if not lista:
@@ -631,7 +631,7 @@ class StewardFlow(BaseFlow):
 
         pdf_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_tab_pdf"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.pdf_tab"),
             description="PDF Tab",
         )
         if not pdf_tab:
@@ -652,7 +652,7 @@ class StewardFlow(BaseFlow):
 
         close_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_close_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.close_tab"),
             description="Close Tab",
         )
         if not close_tab:
@@ -672,7 +672,7 @@ class StewardFlow(BaseFlow):
 
         close_modal = self.wait_for_element(
             config.get_rpa_setting("images.steward_close_modal"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.close_modal"),
             description="Close Modal",
         )
         if not close_modal:
@@ -692,7 +692,7 @@ class StewardFlow(BaseFlow):
 
         cancel_modal = self.wait_for_element(
             config.get_rpa_setting("images.steward_cancel_modal"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.cancel_modal"),
             description="Cancel Modal",
         )
         if not cancel_modal:
@@ -712,7 +712,7 @@ class StewardFlow(BaseFlow):
 
         close_meditech = self.wait_for_element(
             config.get_rpa_setting("images.steward_close_meditech"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.close_meditech"),
             description="Close Meditech",
         )
         if not close_meditech:
@@ -738,7 +738,7 @@ class StewardFlow(BaseFlow):
 
         logged_out_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_tab_logged_out"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.logged_out_tab"),
             description="Logged Out Tab",
         )
         if not logged_out_tab:
@@ -759,7 +759,7 @@ class StewardFlow(BaseFlow):
 
         close_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_close_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.close_tab"),
             description="Close Tab",
         )
         if not close_tab:
@@ -779,7 +779,7 @@ class StewardFlow(BaseFlow):
 
         url_field = self.wait_for_element(
             config.get_rpa_setting("images.steward_url"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.url"),
             description="URL Field",
         )
         if not url_field:
@@ -814,7 +814,7 @@ class StewardFlow(BaseFlow):
 
         vdi_tab = self.wait_for_element(
             config.get_rpa_setting("images.steward_vdi_desktop_tab"),
-            timeout=config.get_timeout("default", 60),
+            timeout=config.get_timeout("steward.vdi_tab"),
             description="VDI Desktop Tab",
         )
         if not vdi_tab:

@@ -24,19 +24,19 @@
 		},
 		{
 			"name": "smh - South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_2.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_2_fullscreen.png",
 			"index": 2,
 			"display_name": "Hospital_2"
 		},
 		{
 			"name": "wkbh - South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_3.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_3_fullscreen.png",
 			"index": 3,
 			"display_name": "Hospital_3"
 		},
 		{
 			"name": "BHM South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_4.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_4_fullscreen.png",
 			"index": 4,
 			"display_name": "Hospital_4"
 		}
@@ -123,13 +123,48 @@
 	"timeouts": {
 		"default": 60,
 		"login": 120,
-		"powerchart_open": 120,
-		"vdi_open": 30,
-		"edge_open": 120,
-		"pineapple_connect": 300,
-		"cerner_open": 120,
-		"cerner_login": 120,
-		"horizon_close": 120
+		"common": {
+			"vdi_open": 30,
+			"lobby_verify": 30
+		},
+		"baptist": {
+			"edge_open": 400,
+			"pineapple_connect": 300,
+			"cerner_open": 120,
+			"cerner_login": 120,
+			"powerchart_open": 120,
+			"horizon_close": 120
+		},
+		"jackson": {
+			"tab": 60,
+			"powered": 60,
+			"download": 60,
+			"username": 60,
+			"password": 60,
+			"login_ok": 60,
+			"patient_list": 60,
+			"hospital_tab": 60,
+			"cerner_close": 60,
+			"vdi_tab": 60
+		},
+		"steward": {
+			"tab": 60,
+			"favorite": 60,
+			"meditech": 60,
+			"login_window": 120,
+			"password_window": 120,
+			"session": 60,
+			"menu": 60,
+			"lista": 60,
+			"pdf_tab": 60,
+			"close_tab": 60,
+			"close_modal": 60,
+			"cancel_modal": 60,
+			"close_meditech": 60,
+			"logged_out_tab": 60,
+			"url": 60,
+			"vdi_tab": 60
+		}
 	},
 	"confidence": 0.8,
 	"retry": {
