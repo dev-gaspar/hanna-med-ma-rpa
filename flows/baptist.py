@@ -96,7 +96,7 @@ class BaptistFlow(BaseFlow):
 
         edge_icon = self.wait_for_element(
             config.get_rpa_setting("images.edge_icon"),
-            timeout=config.get_timeout("edge_open", 300),
+            timeout=config.get_timeout("edge_open", 400),
             description="Edge icon",
         )
 

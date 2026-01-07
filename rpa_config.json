@@ -125,7 +125,7 @@
 		"login": 120,
 		"powerchart_open": 120,
 		"vdi_open": 30,
-		"edge_open": 120,
+		"edge_open": 400,
 		"pineapple_connect": 300,
 		"cerner_open": 120,
 		"cerner_login": 120,
