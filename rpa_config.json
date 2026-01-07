@@ -24,19 +24,19 @@
 		},
 		{
 			"name": "smh - South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_2.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_2_fullscreen.png",
 			"index": 2,
 			"display_name": "Hospital_2"
 		},
 		{
 			"name": "wkbh - South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_3.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_3_fullscreen.png",
 			"index": 3,
 			"display_name": "Hospital_3"
 		},
 		{
 			"name": "BHM South Florida Foot _Ankle Institute, LL",
-			"tab_image": "images/{resolution}/baptist/hospital_tab_4.png",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_4_fullscreen.png",
 			"index": 4,
 			"display_name": "Hospital_4"
 		}

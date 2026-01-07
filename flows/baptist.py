@@ -467,16 +467,16 @@ class BaptistFlow(BaseFlow):
             raise Exception("Patient List not found")
         stoppable_sleep(3)
 
-        # Make sure we are in normalscreen before navigating between tabs
-        self._click_normalscreen()
-        stoppable_sleep(2)
-
         # Load ROIs from config using base class method
         rois = self._get_rois("patient_finder")
 
         # Get hospitals from configuration
         hospitals = config.get_hospitals()
-        total_hospitals = len(hospitals)
+
+        # Enter fullscreen ONCE at the beginning for all captures
+        self._click_fullscreen()
+        stoppable_sleep(3)
+        logger.info("[STEP 11] Entered fullscreen mode for all captures")
 
         for idx, hospital in enumerate(hospitals, 1):
             hospital_full_name = hospital.get("name", f"Unknown Hospital {idx}")
@@ -488,6 +488,7 @@ class BaptistFlow(BaseFlow):
                 f"[STEP 11.{idx}] Processing {display_name} - {hospital_full_name}"
             )
 
+            # For hospitals 2+, click on the tab (using fullscreen tab images)
             if idx > 1:
                 if tab_image:
                     hospital_tab = self.wait_for_element(
@@ -510,10 +511,7 @@ class BaptistFlow(BaseFlow):
                     )
                     continue
 
-            # Enter fullscreen for better ROI alignment before capturing
-            self._click_fullscreen()
-            stoppable_sleep(3)
-
+            # Capture screenshot (already in fullscreen)
             screenshot_data = self.s3_client.capture_screenshot_with_processing(
                 hospital_full_name,
                 display_name,
@@ -524,14 +522,10 @@ class BaptistFlow(BaseFlow):
             )
             screenshots.append(screenshot_data)
 
-            # Exit fullscreen to ensure tab images match originals for the next iteration
-            if idx < total_hospitals:
-                self._click_normalscreen()
-                stoppable_sleep(2)
-
-        # Ensure we leave the EMR in normalscreen state
+        # Exit fullscreen ONCE at the end
         self._click_normalscreen()
         stoppable_sleep(2)
+        logger.info("[STEP 11] Exited fullscreen mode")
 
         logger.info(f"[STEP 11] Captures completed ({len(screenshots)} hospitals)")
         return screenshots
