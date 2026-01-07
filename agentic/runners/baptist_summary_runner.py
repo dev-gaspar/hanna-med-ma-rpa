@@ -24,6 +24,7 @@ from agentic.emr.baptist import tools
 from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
 from agentic.screen_capturer import get_screen_capturer, get_agent_rois
+from version import __version__
 
 
 @dataclass
@@ -97,6 +98,7 @@ class BaptistSummaryRunner:
 
         logger.info("=" * 70)
         logger.info(" LOCAL BAPTIST RUNNER - STARTING")
+        logger.info(f" VERSION: {__version__}")
         logger.info("=" * 70)
         logger.info(f"[RUNNER] Execution ID: {self.execution_id}")
         logger.info(f"[RUNNER] Patient: {patient_name}")
@@ -359,11 +361,44 @@ class BaptistSummaryRunner:
             logger.warning("[RUNNER] Notes menu not found after handling modals")
             self._record_step("rpa", "click_notes", "Notes menu not found")
         else:
-            logger.info("[RUNNER] Clicked Notes menu")
-            self._record_step("rpa", "click_notes", "Clicked Notes menu: success")
+            logger.info("[RUNNER] First click on Notes menu registered")
+            self._record_step(
+                "rpa", "click_notes", "First click on Notes menu: success"
+            )
 
-        # Wait for notes tree to load
-        logger.info("[RUNNER] Waiting 5s for notes tree...")
+            # Wait for screen to fully stabilize before confirmation click
+            logger.info("[RUNNER] Waiting 5s for screen to stabilize...")
+            self.rpa.stoppable_sleep(5)
+            self.rpa.check_stop()
+
+            # Confirmation click on Notes to ensure it's properly selected
+            logger.info("[RUNNER] Confirmation click on Notes menu...")
+            notes_image = config.get_rpa_setting("images.baptist_notes_menu")
+            try:
+                location = pyautogui.locateOnScreen(notes_image, confidence=0.8)
+                if location:
+                    self.rpa.safe_click(location, "Notes Menu (confirmation)")
+                    logger.info("[RUNNER] Confirmation click on Notes: success")
+                    self._record_step(
+                        "rpa",
+                        "click_notes_confirm",
+                        "Confirmation click on Notes: success",
+                    )
+                else:
+                    logger.info(
+                        "[RUNNER] Notes already selected (not visible as button)"
+                    )
+                    self._record_step(
+                        "rpa", "click_notes_confirm", "Notes already active"
+                    )
+            except Exception as e:
+                logger.warning(f"[RUNNER] Confirmation click failed: {e}")
+                self._record_step(
+                    "rpa", "click_notes_confirm", f"Confirmation click failed: {e}"
+                )
+
+        # Wait for notes tree to fully load after confirmation
+        logger.info("[RUNNER] Waiting 5s for notes tree to load...")
         self.rpa.stoppable_sleep(5)
         self.rpa.check_stop()
 
@@ -508,7 +543,7 @@ class BaptistSummaryRunner:
             result = self.report_finder.decide_action(
                 image_base64=image_b64,
                 ui_elements=elements,
-                history=self.history[-10:],
+                history=self.history,
                 current_step=self.current_step,
             )
 
@@ -545,6 +580,10 @@ class BaptistSummaryRunner:
             tools.nav_up(times=repeat)
         elif action == "nav_down":
             tools.nav_down(times=repeat)
+        elif action == "scroll_up":
+            tools.scroll_tree_up(clicks=repeat)
+        elif action == "scroll_down":
+            tools.scroll_tree_down(clicks=repeat)
         elif action == "click" and target_id is not None:
             tools.click_element(target_id, elements, action="click")
         elif action == "dblclick" and target_id is not None:

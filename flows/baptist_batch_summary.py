@@ -420,26 +420,104 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
 
     def return_to_patient_list(self):
         """
-        Return to patient list after extracting content.
+        Close current patient detail and return to patient list.
         Uses Alt+F4 to close the patient detail view.
+        Uses visual validation to confirm we're back at the patient list.
+        Includes fallback: if report document is still visible, retry Alt+F4.
         """
         self.set_step("RETURN_TO_PATIENT_LIST")
         logger.info("[BAPTIST-BATCH] Returning to patient list...")
 
         # Click center to ensure focus
+        logger.info("[BAPTIST-BATCH] Clicking center to ensure focus...")
         screen_w, screen_h = pyautogui.size()
         pyautogui.click(screen_w // 2, screen_h // 2)
         stoppable_sleep(0.5)
 
         # Close patient detail with Alt+F4
+        logger.info("[BAPTIST-BATCH] Sending Alt+F4 to close patient detail...")
         pydirectinput.keyDown("alt")
         stoppable_sleep(0.1)
         pydirectinput.press("f4")
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait 5 seconds for the transition
-        stoppable_sleep(5)
+        # Wait for patient list header to be visible (visual validation)
+        logger.info("[BAPTIST-BATCH] Waiting for patient list header (max 30s)...")
+
+        patient_list_header_img = config.get_rpa_setting(
+            "images.baptist_patient_list_header"
+        )
+        report_document_img = config.get_rpa_setting("images.baptist_report_document")
+
+        header_found = self.wait_for_element(
+            patient_list_header_img,
+            timeout=30,
+            description="Patient List Header",
+        )
+
+        if header_found:
+            logger.info("[BAPTIST-BATCH] OK - Patient list header detected")
+        else:
+            # Fallback: if header not found, check if report document is still visible
+            logger.warning(
+                "[BAPTIST-BATCH] FAIL - Patient list header NOT detected after 30s"
+            )
+            logger.info(
+                "[BAPTIST-BATCH] Checking if report document is still visible..."
+            )
+
+            # Check if report document is still visible (patient detail still open)
+            try:
+                report_visible = pyautogui.locateOnScreen(
+                    report_document_img, confidence=0.8
+                )
+            except Exception:
+                report_visible = None
+
+            if report_visible:
+                logger.warning(
+                    "[BAPTIST-BATCH] Report document still visible - patient detail NOT closed"
+                )
+                logger.info(
+                    "[BAPTIST-BATCH] Retrying - clicking center to ensure focus..."
+                )
+
+                # Click center to ensure focus
+                pyautogui.click(screen_w // 2, screen_h // 2)
+                stoppable_sleep(0.5)
+
+                # Retry Alt+F4
+                logger.info("[BAPTIST-BATCH] Sending Alt+F4 again...")
+                pydirectinput.keyDown("alt")
+                stoppable_sleep(0.1)
+                pydirectinput.press("f4")
+                stoppable_sleep(0.1)
+                pydirectinput.keyUp("alt")
+
+                # Wait for patient list header again
+                logger.info(
+                    "[BAPTIST-BATCH] Waiting for patient list header after retry (max 30s)..."
+                )
+                header_found = self.wait_for_element(
+                    patient_list_header_img,
+                    timeout=30,
+                    description="Patient List Header (retry)",
+                )
+
+                if header_found:
+                    logger.info(
+                        "[BAPTIST-BATCH] OK - Patient list header detected after retry"
+                    )
+                else:
+                    logger.error(
+                        "[BAPTIST-BATCH] FAIL - Patient list header still NOT detected after retry"
+                    )
+            else:
+                logger.info(
+                    "[BAPTIST-BATCH] Report document not visible - assuming we're at patient list"
+                )
+
         self._patient_detail_open = False
         logger.info("[BAPTIST-BATCH] Back at patient list")
 

@@ -18,7 +18,7 @@ from logger import logger
 
 SYSTEM_PROMPT = """You are ReportFinderAgent for Jackson Hospital EMR (Cerner PowerChart).
 
-YOUR MISSION: Navigate the Notes tree to find and open a clinical report with valid content.
+YOUR MISSION: Navigate the Notes tree to find and open the MOST RECENT valid clinical report.
 
 === UNDERSTANDING THE NOTES TREE ===
 
@@ -30,13 +30,22 @@ The Notes panel displays a hierarchical tree structure:
 
 === AVAILABLE ACTIONS ===
 
-| Action    | Effect                                           | When to Use                        |
-|-----------|--------------------------------------------------|-------------------------------------|
-| click     | Select an element (positions cursor)             | Before nav_up/nav_down on a folder  |
-| dblclick  | Toggle folder open/close                         | To CLOSE a folder and try another   |
-| nav_up    | Move selection UP, auto-opens documents          | Navigate within expanded folder     |
-| nav_down  | Move selection DOWN, auto-opens documents        | Navigate within expanded folder     |
-| wait      | Do nothing                                       | Rarely needed                       |
+| Action      | Effect                                           | When to Use                        |
+|-------------|--------------------------------------------------|-------------------------------------|
+| scroll_down | Scroll the tree DOWN to see folders below        | PHASE 1: Scanning for folders       |
+| scroll_up   | Scroll the tree UP to see folders above          | If you scrolled too far             |
+| click       | Select an element (positions cursor)             | Before nav_up/nav_down on a folder  |
+| dblclick    | Toggle folder open/close                         | To CLOSE a folder and try another   |
+| nav_up      | Move selection UP, auto-opens documents          | PHASE 3: Navigate within folder     |
+| nav_down    | Move selection DOWN, auto-opens documents        | PHASE 3: Navigate within folder     |
+| wait        | Do nothing                                       | Rarely needed                       |
+
+=== CRITICAL: SCROLL vs NAV ===
+
+scroll_down/scroll_up = For finding FOLDERS (when folder not visible)
+nav_down/nav_up = For browsing DOCUMENTS inside an expanded folder
+
+NEVER use nav_down to find folders - use scroll_down first!
 
 === CRITICAL BEHAVIOR OF nav_up/nav_down ===
 
@@ -49,9 +58,6 @@ REPEAT FEATURE: You can use "repeat" (1-5) to navigate multiple documents at onc
 - repeat=1 (default): Move to next/previous document
 - repeat=2: Skip 2 documents in one action  
 - repeat=3+: Skip multiple documents quickly (useful to escape loops or skip bad docs)
-
-Example: If you're at a "23 Hour..." doc and want to skip 3 documents:
-→ action="nav_down", repeat=3
 
 === PRIORITY SEARCH ORDER ===
 
@@ -102,6 +108,31 @@ ESCAPE STRATEGIES:
 2. If nav_up stuck → try nav_down once, then CLOSE folder and try next priority
 3. If alternating nav_up/nav_down → STOP, close folder, move to NEXT PRIORITY
 4. After step 15 without success → skip directly to Priority 3 or 4
+
+=== FOLDER EXPLORATION MEMORY ===
+
+CRITICAL: When you try a folder and find ONLY skip-documents (like "23 Hour..."):
+- That folder is EXHAUSTED for the current priority
+- Mark it mentally as "checked - no valid docs"
+- NEVER return to that folder in subsequent steps
+- Move IMMEDIATELY to the next priority folder
+
+EXAMPLE:
+- Step 5: Entered "History and Physical Notes" → only "23 Hour..." docs
+- MARK: H&P = exhausted, proceed to Priority 2
+- Steps 6-30: NEVER click on "History and Physical Notes" again
+
+=== MISSING FOLDER HANDLING ===
+
+Not all patients have all folder types. If after 2 scroll actions you don't see:
+- "ER/ED Notes" or "ED Notes" → SKIP Priority 2, go to Priority 3
+- "Hospitalist Notes" → SKIP Priority 3, go to Priority 4
+- "Progress Notes" → SKIP Priority 4, go to Priority 5 (Consultation)
+
+DO NOT:
+- Scroll more than 2 times looking for a single folder
+- Assume a folder exists just because it's in the priority list
+- Keep searching for folders that aren't visible after reasonable scrolling
 
 === SUCCESS CRITERIA ===
 
@@ -187,13 +218,16 @@ Steps remaining: {steps_remaining}
    → YES: CLOSE current folder (dblclick), try next priority folder
    → NO: Continue current strategy
 
-3. Which priority folder should I be working on based on current step?
-   - Steps 1-10: Priority 1 (History and Physical Notes)
-   - Steps 11-17: Priority 2 (ED/ER Notes)
-   - Steps 18-24: Priority 3 (Hospitalist Notes)
-   - Steps 25-30: Priority 4 (Any clinical notes) or error
+3. Have I already explored the current priority folder?
+   - If H&P only had "23 Hour..." docs → H&P is EXHAUSTED, go to Priority 2
+   - If I scrolled 2x and didn't find ED/Hospitalist folders → SKIP that priority
+   - If I'm clicking the same folder again → STOP, move to next priority
+   
+4. Am I wasting steps looking for folders that don't exist?
+   - If 2+ scroll actions without finding target folder → folder doesn't exist
+   - Move to next priority immediately
 
-4. What is my next action to make progress?
+5. What is my next action to make progress?
    → If need to select folder: click on folder element
    → If inside folder, need next doc: nav_down
    → If at bottom of folder: nav_up to folder, then dblclick to close
@@ -213,9 +247,17 @@ class ReportFinderResult(BaseModel):
     status: Literal["running", "finished", "error"] = Field(
         description="'running' to continue, 'finished' when report found, 'error' on failure"
     )
-    action: Optional[Literal["click", "dblclick", "nav_up", "nav_down", "wait"]] = (
-        Field(default=None, description="Action to execute")
-    )
+    action: Optional[
+        Literal[
+            "click",
+            "dblclick",
+            "nav_up",
+            "nav_down",
+            "scroll_up",
+            "scroll_down",
+            "wait",
+        ]
+    ] = Field(default=None, description="Action to execute")
     target_id: Optional[int] = Field(
         default=None, description="Element ID for click/dblclick actions"
     )

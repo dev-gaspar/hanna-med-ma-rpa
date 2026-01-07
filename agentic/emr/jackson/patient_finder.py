@@ -36,6 +36,26 @@ WHEN TO USE "retry":
 - You can clearly see the patient name in the screenshot
 - But the UI_ELEMENTS list doesn't have a matching element
 - This is an OCR failure, not a missing patient
+- You have up to 3 retries, so 1-2 retries are acceptable
+
+=== ROW-BASED FALLBACK (after 1-2 retries) ===
+
+If OCR fragments the patient name (e.g., detects "BERGA" but not "JAIME"), use ANY element in the SAME ROW:
+
+1. If you SEE the patient but their FULL name is NOT in UI_ELEMENTS
+2. Look for OTHER elements in that row: MRN number, medical service, date, partial name
+3. Return status="found" + element_id=<any element in that row>
+4. Clicking any element in the row will select the patient!
+
+EXAMPLE:
+- You see "BERGA, JAIME" in row 9 but UI_ELEMENTS only has "BERGA" (ID 41)
+- Return element_id=41 → The row gets selected correctly!
+
+OR:
+- You see "LOPEZ CARDENAS, DIEGO FERNANDO" but OCR split it as "CARDENAS; DIEGO FERNANDO" (ID 56)
+- Return element_id=56 → Close enough, the row gets selected!
+
+IMPORTANT: Do NOT retry more than 2 times. After 2 retries, use partial matches or row-adjacent elements.
 
 CRITICAL: Jackson has only ONE patient tab. If the patient is not visible at all, return not_found immediately."""
 

@@ -1,7 +1,7 @@
 """
 ReportFinderAgent for Baptist EMR.
 Navigates the notes/documents tree to find and open a patient report.
-Uses tools to interact with the UI: nav_up, nav_down, click, dblclick.
+Uses tools to interact with the UI: nav_up, nav_down, click, dblclick, scroll_up, scroll_down.
 """
 
 from typing import Any, Dict, List, Literal, Optional, Type
@@ -18,199 +18,167 @@ from logger import logger
 
 SYSTEM_PROMPT = """You are ReportFinderAgent for Baptist Health EMR (Cerner PowerChart).
 
-YOUR MISSION: Navigate the Notes/Documents tree to find and open a clinical report with valid content.
+YOUR MISSION: Find and open the MOST RECENT valid clinical report from the Notes tree.
 
-=== UNDERSTANDING THE NOTES TREE ===
+=============================================================================
+PHASE 1: SCAN - Scroll to see all available folders
+=============================================================================
 
-The Notes panel displays a hierarchical tree structure:
-- FOLDERS: Have folder icons (yellow/brown), can be expanded/collapsed by double-click
-- DOCUMENTS: Have document icons (small rectangle), contain actual report content
-- The SELECTED item is highlighted (usually blue background)
-- The RIGHT PANE shows the content of the currently opened document
+FIRST, you must SCAN the tree to see what folders are available:
 
-=== AVAILABLE ACTIONS ===
+1. Start at the top of the Notes tree
+2. Use scroll_down (repeat=3) to reveal folders below
+3. Keep track of which priority folders you see:
+   - Priority 1: "History and Physical Notes"
+   - Priority 2: "ER/ED Notes" or "ED Notes"  
+   - Priority 3: "Hospitalist Notes"
+   - Priority 4: "Progress Notes", "Admission Notes"
+   - Priority 5 (LAST RESORT): "Consultation Notes"
 
-| Action    | Effect                                           | When to Use                             |
-|-----------|--------------------------------------------------|-----------------------------------------|
-| click     | Click on a visible element by ID                 | To SELECT a folder or document          |
-| dblclick  | Double-click on element                          | To expand/collapse folder               |
-| nav_up    | Move selection UP in the tree                    | Navigate docs, scroll tree              |
-| nav_down  | Move selection DOWN in the tree                  | Navigate docs, scroll tree              |
-| wait      | Do nothing                                       | Rarely needed                           |
+4. Continue scrolling until you've seen all folders or found Priority 1
 
-=== USING nav_up / nav_down ===
+=============================================================================
+PHASE 2: EVALUATE - Identify the highest priority folder visible
+=============================================================================
 
-nav_up/nav_down is for:
-1. Scrolling the tree to find folders (when folder not visible)
-2. Moving between documents INSIDE an already-expanded folder
+After scanning, identify the HIGHEST PRIORITY folder you saw:
 
-CRITICAL RULE: Once you SEE a priority folder in UI_ELEMENTS:
-→ STOP using nav_up/nav_down to "reach" it!
-→ Use click/dblclick DIRECTLY on that folder!
+- If you see "History and Physical Notes" → This is Priority 1, go to Phase 3
+- If no Priority 1 but see "ED Notes" → This is Priority 2, go to Phase 3
+- If no Priority 1-2 but see "Hospitalist Notes" → Priority 3, go to Phase 3
+- Continue down the priority list...
 
-REPEAT FEATURE: You can use "repeat" (1-5) to navigate multiple items:
-- repeat=1 (default): Move to next/previous item
-- repeat=2-3: Skip a few items (use sparingly)
+NEVER skip to a lower priority if a higher one exists!
 
-=== OCR RETRY WITH wait ===
+=============================================================================
+PHASE 3: NAVIGATE - Open folder and browse documents
+=============================================================================
 
-If you SEE a folder in the screenshot but it's NOT in UI_ELEMENTS:
-→ Return action="wait" to trigger a fresh OCR scan (max 2 times)
+Once you've identified your target folder:
 
-AFTER 2 WAITS without getting element ID:
-→ Look for ANY element in the SAME ROW that WAS captured (icon, adjacent text)
-→ Click on that adjacent element - it will select the folder!
-→ Example: If you see "History and Physical Notes" but no ID, click on the folder ICON next to it
+1. CLICK or DBLCLICK on the folder to select/expand it.
+2. STOP AND ASSESS (See "Hierarchical Navigation & Date Logic").
+3. Use nav_down to enter the folder and open the target document.
+4. CHECK the right pane for valid clinical content.
+5. If document is bad → nav_down to next.
+6. If folder exhausted → CLOSE it with dblclick, go to next priority.
 
-CRITICAL: NEVER use "nav_down repeat=5 to reach" a folder you can SEE!
-That's NOT how nav works - nav moves selection, it doesn't scroll towards a target!
+=============================================================================
+CRITICAL: HIERARCHICAL NAVIGATION & DATE LOGIC
+=============================================================================
 
-=== CLOSE FOLDERS WHEN CHAOTIC ===
+When you open a folder (e.g. "Progress Notes"):
+1. PAUSE. Look at the children elements.
+2. If you see SUB-FOLDERS (e.g. "Neurology", "Infectious Disease"):
+   - Don't just click the first one!
+   - Scan for the most relevant specialty (e.g. General Medicine, Hospitalist).
+   - If unsure, "General" or blank is usually best.
+3. If you see DOCUMENTS:
+   - READ THE DATES. (e.g. "01/05/26", "12/30/25")
+   - YOU MUST NAVIGATE TO THE MOST RECENT DOCUMENT.
+   - Do not settle for an old note just because it's first in the list.
 
-If tree looks chaotic (many folders expanded, hard to navigate):
-→ CLOSE unnecessary folders with dblclick
-→ This simplifies the tree
+=============================================================================
+AVAILABLE ACTIONS
+=============================================================================
 
-=== CRITICAL BEHAVIOR OF nav_up/nav_down ===
+| Action      | Purpose                                          | When to Use                    |
+|-------------|--------------------------------------------------|--------------------------------|
+| scroll_down | Scroll tree DOWN to reveal folders below         | PHASE 1: Scanning for folders  |
+| scroll_up   | Scroll tree UP to reveal folders above           | If you scrolled too far        |
+| click       | Click on a visible element                       | To select a folder             |
+| dblclick    | Double-click on element                          | To expand/collapse folder      |
+| nav_down    | Move selection DOWN and auto-open document       | PHASE 3: Inside expanded folder|
+| nav_up      | Move selection UP and auto-open document         | PHASE 3: Inside expanded folder|
+| wait        | Do nothing, wait for OCR refresh                 | If OCR missed an element       |
 
-When nav_down or nav_up lands on a DOCUMENT:
-- The document is AUTOMATICALLY OPENED in the right pane
-- You do NOT need to dblclick - just CHECK if content is valid
-- Valid content = medical notes (Chief Complaint, History, Assessment, etc.)
+=============================================================================
+CRITICAL RULES
+=============================================================================
 
-=== PRIORITY SEARCH ORDER ===
+1. scroll_down/scroll_up = For finding FOLDERS (Phase 1)
+2. nav_down/nav_up = For browsing DOCUMENTS inside a folder (Phase 3)
+3. NEVER use nav_down to find folders - it enters documents, not scrolls!
+4. Once you SEE a priority folder → CLICK on it, don't nav towards it!
+5. nav_down/nav_up AUTO-OPEN documents - check right pane after each nav
 
-Search folders in this STRICT order. You MUST exhaust each priority before moving to the next:
-
-| Priority | Folder Name                        | Valid Documents Inside                          |
-|----------|------------------------------------|------------------------------------------------|
-| 1        | "History and Physical Notes"       | Any H&P (SKIP "23 Hour..." docs)               |
-| 2        | "ER/ED Notes" or "ED Notes"        | "ED Notes Physician" specifically              |
-| 3        | "Hospitalist Notes"                | Any hospitalist note                           |
-| 4        | "Progress Notes", "Admission Notes"| "Physician Progress Note" FIRST, skip Nurse    |
-| 5 (LAST) | "Consultation Notes"               | ONLY if priorities 1-4 have NO docs            |
-
-=== WORKFLOW FOR EACH PRIORITY - CRITICAL ===
-
-For EACH priority folder, follow this EXACT workflow:
-
-1. FIND the target folder (e.g., "History and Physical Notes")
-   - If visible in UI_ELEMENTS → GO TO STEP 2 IMMEDIATELY!
-   - If visible in screenshot but NOT in UI_ELEMENTS → wait for OCR retry (max 2 times)
-   - If folder text not visible at all → nav_down to scroll tree
-
-2. CLICK or DBLCLICK on the folder to SELECT and EXPAND it
-   - You MUST click/dblclick the folder BEFORE using nav_down inside it!
-   - If OCR missed the text but captured an icon/element in same area → click that!
-
-3. Use nav_down to enter the folder and check documents
-   - nav_down opens each document automatically
-   - CHECK the right pane for valid clinical content
-
-4. If document is bad → nav_down to next document (repeat=1 or 2)
-   - Skip "23 Hour...", "Nurse Progress Note", etc.
-
-5. If folder exhausted (no more docs) → CLOSE it with dblclick, go to next priority
-
-=== CRITICAL MISTAKE #1 - NEVER DO THIS ===
-
-❌ WRONG: "I see H&P folder at the bottom" → nav_down repeat=5 to reach it
-❌ WRONG: "I see H&P folder but OCR didn't capture it" → nav_down repeat=5
-
-✅ RIGHT: "I see H&P folder at element [11]" → dblclick(11) to expand it
-✅ RIGHT: "I see H&P folder, OCR missed text but captured icon [5]" → click(5)
-✅ RIGHT: "I don't see H&P folder at all" → nav_down repeat=2 to scroll tree
-
-=== DOCUMENTS TO ALWAYS SKIP (unless all priorities exhausted) ===
+=============================================================================
+WHAT TO SKIP
+=============================================================================
 
 - "23 Hour History and Physical Update Note" - brief update, not full H&P
-- "Nurse Progress Note" - prefer "Physician Progress Note" instead
-- "Consultation Note" or "Consult Note" - ONLY accept as Priority 5 (last resort)
-- Documents with no visible content in right pane
-- Administrative or non-clinical documents
+- "Nurse Progress Note" - prefer Physician notes
+- "Consultation Note" - ONLY accept if priorities 1-4 have no documents
+- Documents with no visible clinical content
 
-=== LOOP DETECTION - CRITICAL ===
+=============================================================================
+WHEN TO CLOSE FOLDERS
+=============================================================================
 
-You are in a LOOP if:
-- Alternating between nav_up and nav_down without clicking on any folder
-- Same nav action repeated 3+ times without finding valid content
-- You keep saying "I see H&P folder" but never click on it!
-- Using nav_down to "reach" or "scroll towards" a folder you can already see!
+If the tree looks chaotic (many folders expanded):
+→ Use dblclick to CLOSE unnecessary folders
+→ This simplifies navigation
 
-THE #1 CAUSE OF LOOPS: 
-"I see H&P folder but OCR didn't capture it" → nav_down repeat=5
-This is WRONG! nav_down does NOT scroll towards what you see - it moves selection!
+=============================================================================
+FOLDER EXPLORATION MEMORY
+=============================================================================
 
-ESCAPE STRATEGIES:
-1. If you SEE a priority folder → CLICK/DBLCLICK on any element near it!
-2. If tree is chaotic → CLOSE folders with dblclick
-3. If stuck after 5+ nav actions → STOP nav, look for clickable elements
-4. After step 15 without success → accept any clinical document
+CRITICAL: When you try a folder and find ONLY skip-documents (like "23 Hour..."):
+- That folder is EXHAUSTED for the current priority
+- Mark it mentally as "checked - no valid docs"
+- NEVER return to that folder in subsequent steps
+- Move IMMEDIATELY to the next priority folder
 
-=== SUCCESS CRITERIA ===
+EXAMPLE:
+- Step 5: Entered "History and Physical Notes" → only "23 Hour..." docs
+- MARK: H&P = exhausted, proceed to Priority 2
+- Steps 6-30: NEVER click on "History and Physical Notes" again
 
-Return status="finished" when:
-- A document is open (landed on it via nav_up/nav_down or was already open)
-- The RIGHT PANE shows actual clinical content (History, Physical Exam, Assessment, Plan, etc.)
-- The document matches current priority (H&P for Priority 1, ED Notes for Priority 2, etc.)
+=============================================================================
+MISSING FOLDER HANDLING
+=============================================================================
 
-=== PRAGMATIC MODE - WHEN STEPS ARE RUNNING LOW ===
+Not all patients have all folder types. If after 2 scroll actions you don't see:
+- "ER/ED Notes" or "ED Notes" → SKIP Priority 2, go to Priority 3
+- "Hospitalist Notes" → SKIP Priority 3, go to Priority 4
+- "Progress Notes" → SKIP Priority 4, go to Priority 5 (Consultation)
 
-BE PRAGMATIC when steps are running out:
+DO NOT:
+- Scroll more than 2 times looking for a single folder
+- Assume a folder exists just because it's in the priority list
+- Keep searching for folders that aren't visible after reasonable scrolling
 
-| Steps Remaining | Behavior                                                    |
-|-----------------|-------------------------------------------------------------|
-| 15+ steps left  | Follow strict priority order, skip Consult Notes            |
-| 10-14 steps     | Accept any clinical note from Priority 1-4 folders          |
-| 5-9 steps       | Accept Consultation Notes if they have good clinical content|
-| <5 steps        | ACCEPT ANY document with clinical content immediately       |
+=============================================================================
+SUCCESS CRITERIA
+=============================================================================
 
-CRITICAL: It's better to return a Consultation Note than to fail with "error".
-A Consult Note with clinical content is MORE VALUABLE than no document at all.
+Return status="finished" when the RIGHT PANE shows valid clinical content:
+- Chief Complaint, History of Present Illness, Assessment, Plan, etc.
+- Physical Exam findings, Review of Systems, etc.
 
-=== WHEN TO RETURN error ===
+=============================================================================
+ERROR CONDITIONS
+=============================================================================
 
-Return status="error" IMMEDIATELY when:
-- You are NOT in the Notes tree view (e.g., forms, or any non-Notes view)
-- After 3 consecutive attempts to navigate back to Notes tree without success
-- All priority folders have been tried AND no document has ANY clinical content
-- You're past step 28 with no valid document found
-- The Notes tree appears empty or inaccessible
+Return status="error" when:
+- You are NOT in the Notes tree view (wrong screen)
+- All priority folders have been tried with no valid documents
+- Past step 28 with no valid document found
 
-=== WRONG VIEW DETECTION - CRITICAL ===
+=============================================================================
+OUTPUT FORMAT
+=============================================================================
 
-CRITICAL - If you see "Clinical Entry", forms, or anything that is NOT the hierarchical Notes tree:
-→ This means RPA navigation failed - you are in the WRONG VIEW
-→ Do NOT waste steps trying to click sidebar icons to "return" to Notes
-→ Return status="error" IMMEDIATELY with reasoning explaining you're in wrong view
-→ The system will handle cleanup and retry
-
-Signs you are in the WRONG VIEW:
-- "Clinical Entry" header visible
-- Forms/data entry fields instead of folder tree
-- No folder icons (yellow/brown) visible
-- No "History and Physical Notes", "Progress Notes" etc. folders visible
-
-=== OUTPUT REQUIREMENTS ===
-
-- status="running" + action + target_id (for click/dblclick) → Continue navigating
-- status="running" + action="nav_up" or "nav_down" + repeat (1-5) → Navigate multiple docs at once
-- status="finished" → Valid report is now visible
-- status="error" → No valid report found after exhausting all options
-- reasoning MUST explain: What you see → What you're trying → Why this action
-
-EXAMPLE OUTPUT WITH REPEAT:
 {
-  "status": "running",
-  "action": "nav_down",
-  "repeat": 3,
-  "reasoning": "I see 3 '23 Hour...' docs - skipping them all at once to reach potential H&P"
+  "status": "running" | "finished" | "error",
+  "action": "scroll_down" | "scroll_up" | "click" | "dblclick" | "nav_down" | "nav_up" | "wait",
+  "target_id": <element_id for click/dblclick, null otherwise>,
+  "repeat": <1-5 for scroll/nav actions>,
+  "reasoning": "Phase X: What I see → What I'm doing → Why"
 }"""
 
 
-USER_PROMPT = """Analyze this screenshot of the Baptist EMR Notes tree.
-
-=== CURRENT STATUS ===
+USER_PROMPT = """=== CURRENT STATUS ===
 Step: {current_step}/30
 Steps remaining: {steps_remaining}
 
@@ -220,48 +188,8 @@ Steps remaining: {steps_remaining}
 === YOUR RECENT ACTIONS ===
 {history}
 
-=== LOOP CHECK ===
+=== LOOP WARNING ===
 {loop_warning}
-
-=== DECISION CHECKLIST ===
-1. Is there valid clinical content visible in the RIGHT PANE now?
-   → YES: Return status="finished"
-   → NO: Continue to step 2
-
-2. Do I SEE a priority folder (H&P, ED, Hospitalist) in UI_ELEMENTS?
-   → YES: **CLICK or DBLCLICK on it directly!** Do NOT use nav to reach it!
-   → NO: Continue to step 3
-
-3. Do I see a priority folder in screenshot but NOT in UI_ELEMENTS?
-   → First time: Return action="wait" for OCR retry
-   → Second time: Return action="wait" again
-   → Third time: Look for ANY element in same area (icon, adjacent text) and CLICK it!
-   → NEVER use nav_down to "reach" a folder you can SEE!
-
-4. Am I INSIDE the right priority folder (folder is expanded)?
-   → YES: Use nav_down to check documents inside it
-   → NO: Continue to step 5
-
-5. Is the folder NOT visible at all in screenshot?
-   → YES: Use nav_down repeat=2 to scroll tree, then look again
-   → NO: There MUST be an element to click - find it!
-
-5. Is the folder NOT visible at all in screenshot?
-   → YES: Use nav_down repeat=2 to scroll tree, then look again
-   → NO: There MUST be an element to click - find it!
-
-6. Am I alternating nav_up/nav_down without clicking any folder (LOOP)?
-   → YES: STOP! Find a folder in UI_ELEMENTS and CLICK it!
-   → NO: Continue current strategy
-
-7. Is the tree chaotic (many folders open)?
-   → YES: CLOSE folders with dblclick to clean up
-   → NO: Continue
-
-8. What is my next action?
-   → If I see priority folder in UI_ELEMENTS → click/dblclick on it!
-   → If inside folder → nav_down to check docs
-   → If folder exhausted → close it, click next priority folder
 
 Decide your next action."""
 
@@ -277,10 +205,18 @@ class ReportFinderResult(BaseModel):
     status: Literal["running", "finished", "error"] = Field(
         description="'running' to continue, 'finished' when report found, 'error' if failed"
     )
-    action: Optional[Literal["click", "dblclick", "nav_up", "nav_down", "wait"]] = (
-        Field(
-            default=None, description="Action to perform. Required if status='running'"
-        )
+    action: Optional[
+        Literal[
+            "click",
+            "dblclick",
+            "nav_up",
+            "nav_down",
+            "scroll_up",
+            "scroll_down",
+            "wait",
+        ]
+    ] = Field(
+        default=None, description="Action to perform. Required if status='running'"
     )
     target_id: Optional[int] = Field(
         default=None,
@@ -288,20 +224,19 @@ class ReportFinderResult(BaseModel):
     )
     repeat: Optional[int] = Field(
         default=1,
-        description="Number of times to repeat nav_up/nav_down (1-5). Default 1.",
+        description="Number of times to repeat scroll/nav actions (1-5). Default 1.",
         ge=1,
         le=5,
     )
     reasoning: str = Field(
-        description="Explain: What you see → What you're trying → Why this action"
+        description="Phase X: What you see → What you're doing → Why"
     )
 
 
 class ReportFinderAgent(BaseAgent):
     """
     Agent that navigates the Notes tree to find a clinical report.
-    Uses nav_up/nav_down to move through folders and documents.
-    Returns finished when valid clinical content is visible.
+    Uses a 3-phase approach: SCAN → EVALUATE → NAVIGATE.
     """
 
     emr_type = "baptist"
@@ -322,37 +257,50 @@ class ReportFinderAgent(BaseAgent):
         history: str = "",
         **kwargs,
     ) -> str:
-        steps_remaining = 30 - current_step
-        loop_warning = self._detect_loop(history)
+        """Generate user prompt with labeled input data only."""
+        steps_remaining = self.max_steps - current_step
+        loop_warning = self._detect_loop_from_text(history)
 
         return USER_PROMPT.format(
-            elements_text=elements_text,
             current_step=current_step,
             steps_remaining=steps_remaining,
-            history=history,
+            elements_text=elements_text or "No elements detected",
+            history=history or "No previous actions",
             loop_warning=loop_warning,
         )
 
-    def _detect_loop(self, history: str) -> str:
-        """Analyze history for loop patterns."""
+    def _detect_loop_from_text(self, history: str) -> str:
+        """Detect if agent is in a loop from history text."""
         if not history:
             return "No loop detected - this is step 1."
 
-        # Count recent actions
-        lines = history.strip().split("\n")
-        recent = lines[-5:] if len(lines) >= 5 else lines
+        # Count actions in text
+        nav_down_count = history.lower().count("nav_down")
+        nav_up_count = history.lower().count("nav_up")
+        scroll_count = history.lower().count("scroll")
 
-        nav_down_count = sum(1 for l in recent if "nav_down" in l.lower())
-        nav_up_count = sum(1 for l in recent if "nav_up" in l.lower())
-
-        if nav_down_count >= 3:
-            return "⚠️ WARNING: nav_down repeated 3+ times. Consider: CLOSE folder (dblclick) and try next priority."
+        if nav_down_count >= 3 and scroll_count == 0:
+            return "WARNING: Multiple nav_down without scroll. If folder not visible, use scroll_down first!"
         if nav_up_count >= 3:
-            return "⚠️ WARNING: nav_up repeated 3+ times. Consider: CLOSE folder (dblclick) and try next priority."
+            return "WARNING: Multiple nav_up. Consider closing folder and trying next priority."
         if nav_down_count >= 2 and nav_up_count >= 2:
-            return "⚠️ WARNING: Alternating nav_up/nav_down detected. STOP and move to next priority folder."
+            return "WARNING: Alternating nav_up/nav_down. STOP and use scroll_down to find folders!"
 
         return "No loop detected."
+
+    def _format_history(self, history: List[Dict[str, Any]]) -> str:
+        """Format action history for the prompt."""
+        if not history:
+            return "No previous actions."
+
+        lines = []
+        for h in history[-10:]:  # Last 10 actions
+            step = h.get("step", "?")
+            action = h.get("action", "?")
+            reasoning = h.get("reasoning", "")[:500]  # Keep more reasoning for context
+            lines.append(f"Step {step}: {action} - {reasoning}")
+
+        return "\n".join(lines)
 
     def decide_action(
         self,
@@ -360,6 +308,7 @@ class ReportFinderAgent(BaseAgent):
         ui_elements: List[Dict[str, Any]],
         history: List[Dict[str, Any]],
         current_step: int,
+        **kwargs,
     ) -> ReportFinderResult:
         """
         Decide the next action to find the report.
@@ -375,7 +324,7 @@ class ReportFinderAgent(BaseAgent):
         """
         logger.info(f"[REPORT_FINDER] Step {current_step} - analyzing screen...")
 
-        # Format elements
+        # Format elements using base class method
         elements_text = self.format_ui_elements(ui_elements)
 
         # Format history
@@ -392,17 +341,3 @@ class ReportFinderAgent(BaseAgent):
             f"[REPORT_FINDER] Decision: {result.status}, action={result.action}, target={result.target_id}"
         )
         return result
-
-    def _format_history(self, history: List[Dict[str, Any]]) -> str:
-        """Format action history for the prompt."""
-        if not history:
-            return "No previous actions."
-
-        lines = []
-        for h in history[-10:]:  # Last 10 actions
-            step = h.get("step", "?")
-            action = h.get("action", "?")
-            reasoning = h.get("reasoning", "")[:80]  # Truncate long reasoning
-            lines.append(f"Step {step}: {action} - {reasoning}")
-
-        return "\n".join(lines)

@@ -24,6 +24,7 @@ from agentic.emr.jackson import tools
 from agentic.models import AgentStatus
 from agentic.omniparser_client import get_omniparser_client
 from agentic.screen_capturer import get_screen_capturer, get_agent_rois
+from version import __version__
 
 
 @dataclass
@@ -89,6 +90,7 @@ class JacksonSummaryRunner:
 
         logger.info("=" * 70)
         logger.info(" LOCAL JACKSON RUNNER - STARTING")
+        logger.info(f" VERSION: {__version__}")
         logger.info("=" * 70)
         logger.info(f"[RUNNER] Execution ID: {self.execution_id}")
         logger.info(f"[RUNNER] Patient: {patient_name}")
@@ -461,7 +463,7 @@ class JacksonSummaryRunner:
             result = self.report_finder.decide_action(
                 image_base64=image_b64,
                 ui_elements=elements,
-                history=self.history[-10:],
+                history=self.history,
                 current_step=self.current_step,
             )
 
@@ -498,6 +500,10 @@ class JacksonSummaryRunner:
             tools.nav_up(times=repeat)
         elif action == "nav_down":
             tools.nav_down(times=repeat)
+        elif action == "scroll_up":
+            tools.scroll_tree_up(clicks=repeat)
+        elif action == "scroll_down":
+            tools.scroll_tree_down(clicks=repeat)
         elif action == "click" and target_id is not None:
             tools.click_element(target_id, elements, action="click")
         elif action == "dblclick" and target_id is not None:

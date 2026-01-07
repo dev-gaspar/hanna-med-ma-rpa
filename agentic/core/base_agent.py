@@ -154,8 +154,8 @@ class BaseAgent(ABC):
     @staticmethod
     def format_history(
         history: List[Dict[str, Any]],
-        max_entries: int = 10,
-        reasoning_length: int = 100,
+        max_entries: int = 50,
+        reasoning_length: int = 500,
     ) -> str:
         """
         Format action history for prompts.
@@ -231,7 +231,7 @@ class BaseAgent(ABC):
                 )
 
         # Check repeated reasoning patterns
-        recent_reasonings = [h.get("reasoning", "")[:50] for h in history[-4:]]
+        recent_reasonings = [h.get("reasoning", "")[:200] for h in history[-4:]]
         if (
             len(recent_reasonings) >= 3
             and len(set(recent_reasonings)) == 1

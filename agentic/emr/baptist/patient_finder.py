@@ -294,7 +294,7 @@ class PatientFinderAgent(BaseAgent):
         for h in history[-10:]:  # Last 10 actions
             step = h.get("step", "?")
             action = h.get("action", "?")
-            reasoning = h.get("reasoning", "")[:100]  # Truncate long reasoning
+            reasoning = h.get("reasoning", "")[:500]  # Keep more reasoning for context
             lines.append(f"Step {step}: {action} - {reasoning}")
 
         return "\n".join(lines)

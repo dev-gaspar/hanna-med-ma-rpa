@@ -110,3 +110,71 @@ def click_element(element_id: int, elements: list, action: str = "click") -> str
     except Exception as e:
         logger.error(f"[TOOL] Click error: {e}")
         return f"error: {e}"
+
+
+def scroll_tree_up(clicks: int = 3) -> str:
+    """
+    Scroll UP in the notes tree to see folders above the current view.
+    First clicks on the tree to ensure it has focus before scrolling.
+
+    Args:
+        clicks: Number of scroll clicks (1-5)
+    """
+    clicks = max(1, min(5, clicks))
+
+    try:
+        center = config.get_roi_center("jackson", "notes_tree")
+        if not center:
+            logger.warning("[TOOL] notes_tree ROI not found, using screen center")
+            screen_w, screen_h = pyautogui.size()
+            center = (int(screen_w * 0.30), int(screen_h * 0.50))
+
+        # Click first to give focus to the tree (required for scroll to work)
+        pyautogui.click(center[0], center[1])
+        pyautogui.sleep(0.3)
+
+        # Scroll with aggressive values (100 per click, similar to baptist.py which uses 300)
+        scroll_amount = clicks * 100
+        pyautogui.scroll(scroll_amount)
+
+        logger.info(
+            f"[TOOL] scroll_tree_up: {clicks} clicks ({scroll_amount}) at {center}"
+        )
+        return "success"
+    except Exception as e:
+        logger.error(f"[TOOL] scroll_tree_up error: {e}")
+        return f"error: {e}"
+
+
+def scroll_tree_down(clicks: int = 3) -> str:
+    """
+    Scroll DOWN in the notes tree to see folders below the current view.
+    First clicks on the tree to ensure it has focus before scrolling.
+
+    Args:
+        clicks: Number of scroll clicks (1-5)
+    """
+    clicks = max(1, min(5, clicks))
+
+    try:
+        center = config.get_roi_center("jackson", "notes_tree")
+        if not center:
+            logger.warning("[TOOL] notes_tree ROI not found, using screen center")
+            screen_w, screen_h = pyautogui.size()
+            center = (int(screen_w * 0.30), int(screen_h * 0.50))
+
+        # Click first to give focus to the tree (required for scroll to work)
+        pyautogui.click(center[0], center[1])
+        pyautogui.sleep(0.3)
+
+        # Scroll with aggressive values (100 per click, similar to baptist.py which uses 300)
+        scroll_amount = clicks * 100
+        pyautogui.scroll(-scroll_amount)
+
+        logger.info(
+            f"[TOOL] scroll_tree_down: {clicks} clicks ({scroll_amount}) at {center}"
+        )
+        return "success"
+    except Exception as e:
+        logger.error(f"[TOOL] scroll_tree_down error: {e}")
+        return f"error: {e}"
