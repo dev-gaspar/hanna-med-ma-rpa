@@ -6,9 +6,10 @@ from fastapi import APIRouter, BackgroundTasks
 
 from core.rpa_engine import (
     rpa_state,
-    enqueue_request,
+    enqueue_and_should_start_processor,
     dequeue_request,
     get_queue_status,
+    mark_processor_finished,
 )
 from flows import (
     BaptistFlow,
@@ -27,7 +28,9 @@ from .models import (
     QueueRPAResponse,
     QueueStatusResponse,
     HospitalType,
+    BatchSummaryRequest,
 )
+from flows.batch_summary_registry import get_batch_summary_flow, is_hospital_supported
 
 from logger import logger
 
@@ -277,32 +280,35 @@ def process_queue():
 
     logger.info("[QUEUE] Starting queue processor")
 
-    while True:
-        request = dequeue_request()
-        if not request:
-            logger.info("[QUEUE] No more requests, queue empty")
-            break
+    try:
+        while True:
+            request = dequeue_request()
+            if not request:
+                logger.info("[QUEUE] No more requests, queue empty")
+                break
 
-        hospital_type = request.get("hospital_type", "UNKNOWN")
-        logger.info(f"[QUEUE] Processing next: {hospital_type}")
+            hospital_type = request.get("hospital_type", "UNKNOWN")
+            logger.info(f"[QUEUE] Processing next: {hospital_type}")
 
-        try:
-            flow = get_flow_for_hospital(hospital_type)
-            flow.run(
-                request["execution_id"],
-                request["sender"],
-                request["instance"],
-                request["trigger_type"],
-                request["doctor_name"],
-                request.get("credentials"),
-            )
-        except Exception as e:
-            logger.error(f"[QUEUE] Error processing {hospital_type}: {str(e)}")
+            try:
+                flow = get_flow_for_hospital(hospital_type)
+                flow.run(
+                    request["execution_id"],
+                    request["sender"],
+                    request["instance"],
+                    request["trigger_type"],
+                    request["doctor_name"],
+                    request.get("credentials"),
+                )
+            except Exception as e:
+                logger.error(f"[QUEUE] Error processing {hospital_type}: {str(e)}")
 
-        # Small pause between flows to let the VDI stabilize
-        time.sleep(2)
-
-    logger.info("[QUEUE] Queue processor finished")
+            # Small pause between flows to let the VDI stabilize
+            time.sleep(2)
+    finally:
+        # CRITICAL: Always mark processor as finished to allow new processor to start
+        mark_processor_finished()
+        logger.info("[QUEUE] Queue processor finished")
 
 
 @router.post("/queue-rpa-flow", response_model=QueueRPAResponse)
@@ -324,14 +330,15 @@ async def queue_rpa_flow(body: QueueRPARequest, background_tasks: BackgroundTask
         "batch_id": body.batch_id,
     }
 
-    position = enqueue_request(request_data)
+    # ATOMIC: Enqueue and decide if we should start processor
+    position, should_start = enqueue_and_should_start_processor(request_data)
+
     logger.info(
-        f"[QUEUE] Request queued: {body.hospital_type.value} at position {position}"
+        f"[QUEUE] Request queued: {body.hospital_type.value} at position {position}, start_processor={should_start}"
     )
 
-    # If RPA is idle, start processing the queue
-    if rpa_state["status"] == "idle":
-        logger.info("[QUEUE] RPA is idle, starting queue processor")
+    if should_start:
+        logger.info("[QUEUE] Starting queue processor")
         background_tasks.add_task(process_queue)
 
     return {
@@ -346,3 +353,64 @@ async def get_queue_status_endpoint():
     """Get the current status of the request queue."""
     status = get_queue_status()
     return status
+
+
+@router.post("/start-batch-summary-flow", response_model=StartRPAResponse)
+async def start_batch_summary_flow(
+    body: BatchSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start a batch patient summary flow.
+
+    Processes multiple patients from the same hospital in one session,
+    returning consolidated results.
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    hospital = body.hospital_type.value
+
+    if not is_hospital_supported(hospital):
+        return {
+            "success": False,
+            "message": f"Batch summary not supported for: {hospital}. Supported: JACKSON, BAPTIST",
+        }
+
+    logger.info(
+        f"[BATCH-SUMMARY] Starting for {len(body.patient_names)} patients at {hospital}"
+    )
+    logger.info(f"[BATCH-SUMMARY] Patients: {body.patient_names}")
+
+    # Get the appropriate batch summary flow
+    flow = get_batch_summary_flow(hospital)
+    logger.info(f"[BATCH-SUMMARY] Flow instance obtained: {flow.__class__.__name__}")
+
+    # Convert credentials if present
+    credentials = None
+    if body.credentials:
+        credentials = [c.model_dump() for c in body.credentials]
+
+    logger.info(f"[BATCH-SUMMARY] Adding flow.run to background tasks...")
+
+    # Run in background
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        credentials,
+        patient_names=body.patient_names,
+        hospital_type=hospital,
+    )
+
+    logger.info(f"[BATCH-SUMMARY] Background task queued, returning response")
+
+    return {
+        "success": True,
+        "message": f"Batch summary started for {len(body.patient_names)} patients at {hospital}",
+    }

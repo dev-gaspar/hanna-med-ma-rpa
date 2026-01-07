@@ -24,6 +24,7 @@ rpa_state = {
 # --- Queue System for Batch Processing ---
 rpa_queue: list = []  # List of pending requests
 rpa_queue_lock = threading.Lock()  # Thread safety for queue operations
+_queue_processor_active = False  # Flag to prevent multiple processors
 
 
 def enqueue_request(request_data: dict) -> int:
@@ -78,6 +79,40 @@ def clear_queue() -> int:
         count = len(rpa_queue)
         rpa_queue.clear()
         return count
+
+
+def enqueue_and_should_start_processor(request_data: dict) -> tuple[int, bool]:
+    """
+    Atomically enqueue a request and determine if a processor should start.
+
+    This prevents race conditions where multiple processors could be started
+    when several requests arrive simultaneously.
+
+    Args:
+        request_data: Dict with hospital_type, execution_id, sender, etc.
+
+    Returns:
+        Tuple of (position, should_start_processor)
+    """
+    global _queue_processor_active
+    with rpa_queue_lock:
+        rpa_queue.append(request_data)
+        position = len(rpa_queue)
+
+        # Only start processor if none is active
+        should_start = False
+        if not _queue_processor_active:
+            _queue_processor_active = True
+            should_start = True
+
+        return position, should_start
+
+
+def mark_processor_finished():
+    """Mark the queue processor as finished, allowing a new one to start."""
+    global _queue_processor_active
+    with rpa_queue_lock:
+        _queue_processor_active = False
 
 
 def set_should_stop(value: bool):

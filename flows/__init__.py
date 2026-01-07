@@ -9,6 +9,16 @@ from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .steward import StewardFlow
 
+# Batch summary flows
+from .base_batch_summary import BaseBatchSummaryFlow
+from .batch_summary_registry import (
+    get_batch_summary_flow,
+    get_available_hospitals,
+    is_hospital_supported,
+)
+from .jackson_batch_summary import JacksonBatchSummaryFlow
+from .baptist_batch_summary import BaptistBatchSummaryFlow
+
 # Flow registry for dynamic dispatch
 FLOW_REGISTRY = {
     "baptist": BaptistFlow,
@@ -16,6 +26,9 @@ FLOW_REGISTRY = {
     "jackson": JacksonFlow,
     "jackson_summary": JacksonSummaryFlow,
     "steward": StewardFlow,
+    # Batch summaries
+    "jackson_batch_summary": JacksonBatchSummaryFlow,
+    "baptist_batch_summary": BaptistBatchSummaryFlow,
 }
 
 
@@ -47,6 +60,12 @@ __all__ = [
     "JacksonFlow",
     "JacksonSummaryFlow",
     "StewardFlow",
+    "BaseBatchSummaryFlow",
+    "JacksonBatchSummaryFlow",
+    "BaptistBatchSummaryFlow",
     "FLOW_REGISTRY",
     "get_flow",
+    "get_batch_summary_flow",
+    "get_available_hospitals",
+    "is_hospital_supported",
 ]

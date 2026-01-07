@@ -175,6 +175,33 @@ class Config:
         return hospitals
 
     @staticmethod
+    def get_roi_center(emr_type: str, region_name: str) -> tuple:
+        """
+        Get the center coordinates of an ROI region.
+
+        Args:
+            emr_type: EMR type ('jackson' or 'baptist')
+            region_name: Region name (e.g., 'notes_tree', 'patient_list')
+
+        Returns:
+            Tuple (x, y) of center coordinates, or None if not found
+        """
+        resolution = Config.get_screen_resolution()
+        roi_regions = Config.RPA_CONFIG.get("roi_regions", {})
+
+        emr_regions = roi_regions.get(emr_type, {})
+        res_regions = emr_regions.get(resolution, {})
+        region = res_regions.get(region_name)
+
+        if not region:
+            return None
+
+        # Calculate center of region
+        center_x = region["x"] + region["w"] // 2
+        center_y = region["y"] + region["h"] // 2
+        return (center_x, center_y)
+
+    @staticmethod
     def get_timeout(timeout_name: str, default: int = 60) -> int:
         """Get specific timeout value in seconds"""
         return Config.get_rpa_setting(f"timeouts.{timeout_name}", default)

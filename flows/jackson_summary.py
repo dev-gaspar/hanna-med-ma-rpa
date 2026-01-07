@@ -7,7 +7,6 @@ This flow combines:
 3. Traditional RPA to copy content and close everything
 """
 
-import threading
 from datetime import datetime
 from typing import Optional
 
@@ -23,10 +22,14 @@ from logger import logger
 
 from .base_flow import BaseFlow
 from .jackson import JacksonFlow
-from agentic import AgentRunner
+
+# OLD: n8n-based AgentRunner (commented for reference)
+# from agentic import AgentRunner
 from agentic.models import AgentStatus
-from agentic.omniparser_client import get_omniparser_client
-from agentic.screen_capturer import get_screen_capturer
+from agentic.omniparser_client import start_warmup_async
+
+# NEW: Local runner with prompt chaining
+from agentic.runners import JacksonSummaryRunner
 
 
 class JacksonSummaryFlow(BaseFlow):
@@ -92,35 +95,34 @@ class JacksonSummaryFlow(BaseFlow):
         if not self.patient_name:
             raise ValueError("Patient name is required for summary flow")
 
-        # Start warming up OmniParser in background WHILE Phase 1 runs
-        warmup_thread = threading.Thread(target=self._warmup_omniparser, daemon=True)
-        logger.info("[JACKSON SUMMARY] Starting OmniParser warmup in background...")
-        warmup_thread.start()
+        # Start OmniParser warmup in background (runs in parallel with Phase 1)
+        start_warmup_async()
 
         # Phase 1: Traditional RPA - Navigate to patient list
         logger.info("[JACKSON SUMMARY] Phase 1: Navigating to patient list...")
         self._phase1_navigate_to_patient_list()
         logger.info("[JACKSON SUMMARY] Phase 1: Complete - Patient list visible")
 
-        # Wait for warmup to complete if still running
-        if warmup_thread.is_alive():
-            logger.info(
-                "[JACKSON SUMMARY] Waiting for OmniParser warmup to complete..."
-            )
-            warmup_thread.join(timeout=60)  # Max 60 seconds
-        logger.info("[JACKSON SUMMARY] OmniParser ready")
+        # Click fullscreen for better visualization
+        logger.info("[JACKSON SUMMARY] Entering fullscreen mode...")
+        self._click_fullscreen()
 
         # Phase 2: Agentic - Find the patient's Final Report
         logger.info(
             f"[JACKSON SUMMARY] Phase 2: Starting agentic search for '{self.patient_name}'..."
         )
-        patient_found = self._phase2_agentic_find_report()
+        phase2_status, phase2_error, patient_detail_open = (
+            self._phase2_agentic_find_report()
+        )
 
-        # Handle patient not found
-        if not patient_found:
+        # Handle patient not found (detail NOT open - only patient list)
+        if phase2_status == "patient_not_found":
             logger.warning(
                 f"[JACKSON SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
             )
+            # Exit fullscreen before cleanup
+            self._click_normalscreen()
+            # Only patient list open, use simple cleanup (1 Alt+F4)
             self._cleanup_and_return_to_lobby()
             return {
                 "patient_name": self.patient_name,
@@ -129,7 +131,43 @@ class JacksonSummaryFlow(BaseFlow):
                 "error": f"Patient '{self.patient_name}' not found in patient list",
             }
 
+        # Handle agent error (failed or ran out of steps)
+        if phase2_status == "error":
+            error_msg = f"Agent failed: {phase2_error}"
+            logger.error(
+                f"[JACKSON SUMMARY] Agent FAILED for '{self.patient_name}' - cleaning up..."
+            )
+
+            # Notify error to centralized n8n webhook
+            self.notify_error(error_msg)
+
+            # Exit fullscreen before cleanup
+            self._click_normalscreen()
+
+            # Choose cleanup based on whether patient detail is open
+            if patient_detail_open:
+                # Patient detail IS open, need 2 Alt+F4 (detail + list)
+                self._cleanup_with_patient_detail_open()
+            else:
+                # Only patient list open, use simple cleanup (1 Alt+F4)
+                self._cleanup_and_return_to_lobby()
+
+            return {
+                "patient_name": self.patient_name,
+                "content": None,
+                "patient_found": False,
+                "error": error_msg,
+            }
+
         logger.info("[JACKSON SUMMARY] Phase 2: Complete - Report found")
+
+        # Exit fullscreen before copying content
+        logger.info("[JACKSON SUMMARY] Exiting fullscreen mode...")
+        self._click_normalscreen()
+
+        # Wait for screen to settle
+        logger.info("[JACKSON SUMMARY] Waiting for screen to settle...")
+        stoppable_sleep(5)
 
         # Phase 3: Traditional RPA - Click report, copy content and close
         logger.info("[JACKSON SUMMARY] Phase 3a: Clicking on report document...")
@@ -173,74 +211,114 @@ class JacksonSummaryFlow(BaseFlow):
         # Give time for the patient list to fully load
         stoppable_sleep(3)
 
-    def _warmup_omniparser(self):
-        """
-        Pre-heat the OmniParser API to reduce latency during agentic phase.
-        Captures current screen and sends to OmniParser.
-        """
-        self.set_step("WARMUP_OMNIPARSER")
-
+    def _click_fullscreen(self):
+        """Click fullscreen button for better visualization during agentic phase."""
+        self.set_step("CLICK_FULLSCREEN")
+        fullscreen_img = config.get_rpa_setting("images.jackson_fullscreen_btn")
         try:
-            capturer = get_screen_capturer()
-            omniparser = get_omniparser_client()
-
-            # Capture and parse current screen to warm up the API
-            data_url = capturer.capture_data_url()
-            parsed = omniparser.parse_image(data_url)
-
-            logger.info(
-                f"[JACKSON SUMMARY] OmniParser warmed up - detected {len(parsed.elements)} elements"
-            )
+            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON SUMMARY] Clicked fullscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[JACKSON SUMMARY] Fullscreen button not found - continuing"
+                )
         except Exception as e:
-            logger.warning(f"[JACKSON SUMMARY] OmniParser warmup failed: {e}")
-            # Continue anyway - not critical
+            logger.warning(f"[JACKSON SUMMARY] Error clicking fullscreen: {e}")
 
-    def _phase2_agentic_find_report(self) -> bool:
+    def _click_normalscreen(self):
+        """Click normalscreen button to restore view after agentic phase."""
+        self.set_step("CLICK_NORMALSCREEN")
+        normalscreen_img = config.get_rpa_setting("images.jackson_normalscreen_btn")
+        try:
+            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info("[JACKSON SUMMARY] Clicked normalscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    "[JACKSON SUMMARY] Normalscreen button not found - continuing"
+                )
+        except Exception as e:
+            logger.warning(f"[JACKSON SUMMARY] Error clicking normalscreen: {e}")
+
+    def _phase2_agentic_find_report(self) -> tuple:
         """
-        Phase 2: Use the agentic brain to find and open the patient's Final Report.
-        The n8n brain controls the navigation until it signals 'finish'.
+        Phase 2: Use local agentic runner to find and open the patient's Final Report.
+        Uses prompt chaining with specialized agents (PatientFinder, ReportFinder).
 
         Returns:
-            True if patient was found, False if not found.
+            Tuple of (status, error_message, patient_detail_open):
+            - ("success", None, True) if patient found and report opened
+            - ("patient_not_found", error_msg, False) if patient not in list
+            - ("error", error_msg, bool) if agent failed or ran out of steps
         """
         self.set_step("PHASE2_AGENTIC_FIND_REPORT")
 
-        # Build the goal for the agent
-        goal = (
-            f"Find and open the Final Report for patient '{self.patient_name}'. "
-            f"Navigate through the patient list, search for the patient name, "
-            f"click on their record, and open the Final Report tab. "
-            f"Signal 'finish' when the Final Report content is visible. "
-            f"Signal 'patient_not_found' if you cannot locate the patient after searching."
+        # =====================================================================
+        # NEW: Local runner with prompt chaining (PatientFinder + ReportFinder)
+        # =====================================================================
+        runner = JacksonSummaryRunner(
+            max_steps=30,
+            step_delay=1,
         )
 
-        # Create and run the agent with the Jackson Summary brain
-        runner = AgentRunner(
-            n8n_webhook_url=self.JACKSON_SUMMARY_BRAIN_URL,
-            max_steps=30,  # Reasonable limit for finding a patient
-            step_delay=1.5,  # Faster for simple navigation
-        )
-
-        result = runner.run(goal=goal)
+        result = runner.run(patient_name=self.patient_name)
 
         # Check if patient was not found
         if result.status == AgentStatus.PATIENT_NOT_FOUND:
             logger.warning(
                 f"[JACKSON SUMMARY] Agent signaled patient not found: {result.error}"
             )
-            return False
+            return ("patient_not_found", result.error, result.patient_detail_open)
 
-        # Check for other failures
+        # Check for other failures (error, stopped, max steps reached)
         if result.status != AgentStatus.FINISHED:
-            raise Exception(
-                f"Agentic phase failed: {result.error or 'Agent did not find the report'}"
+            error_msg = (
+                result.error
+                or "Agent did not find the report (max steps reached or error)"
             )
+            logger.error(f"[JACKSON SUMMARY] Agent failed: {error_msg}")
+            return ("error", error_msg, result.patient_detail_open)
 
         logger.info(f"[JACKSON SUMMARY] Agent completed in {result.steps_taken} steps")
 
         # Give time for the report content to fully render
         stoppable_sleep(2)
-        return True
+        return ("success", None, True)
+
+        # =====================================================================
+        # OLD: n8n-based AgentRunner (commented for reference)
+        # =====================================================================
+        # goal = (
+        #     f"Find and open the Final Report for patient '{self.patient_name}'. "
+        #     f"Navigate through the patient list, search for the patient name, "
+        #     f"click on their record, and open the Final Report tab. "
+        #     f"Signal 'finish' when the Final Report content is visible. "
+        #     f"Signal 'patient_not_found' if you cannot locate the patient after searching."
+        # )
+        #
+        # runner = AgentRunner(
+        #     n8n_webhook_url=self.JACKSON_SUMMARY_BRAIN_URL,
+        #     max_steps=30,
+        #     step_delay=1.5,
+        # )
+        #
+        # result = runner.run(goal=goal)
+        #
+        # if result.status == AgentStatus.PATIENT_NOT_FOUND:
+        #     logger.warning(f"[JACKSON SUMMARY] Agent signaled patient not found: {result.error}")
+        #     return False
+        #
+        # if result.status != AgentStatus.FINISHED:
+        #     raise Exception(f"Agentic phase failed: {result.error or 'Agent did not find the report'}")
+        #
+        # logger.info(f"[JACKSON SUMMARY] Agent completed in {result.steps_taken} steps")
+        # stoppable_sleep(2)
+        # return True
 
     def _handle_info_modal_after_login(self):
         """
@@ -269,8 +347,9 @@ class JacksonSummaryFlow(BaseFlow):
         """
         Cleanup Jackson EMR session and return to lobby when patient not found.
         Only performs one close action since no patient detail was opened.
+        Used when: Patient not found in the list (Phase 2 - PatientFinder failed)
         """
-        logger.info("[JACKSON SUMMARY] Performing cleanup after patient not found...")
+        logger.info("[JACKSON SUMMARY] Performing cleanup (patient list only)...")
         try:
             # Click on screen center to ensure window has focus
             screen_w, screen_h = pyautogui.size()
@@ -279,6 +358,55 @@ class JacksonSummaryFlow(BaseFlow):
 
             # Only one close needed: Close the patient list/Jackson main window with Alt+F4
             logger.info("[JACKSON SUMMARY] Sending Alt+F4 to close Jackson...")
+            pydirectinput.keyDown("alt")
+            stoppable_sleep(0.1)
+            pydirectinput.press("f4")
+            stoppable_sleep(0.1)
+            pydirectinput.keyUp("alt")
+
+            # Wait for the window to close
+            stoppable_sleep(3)
+
+            # Navigate to VDI desktop
+            self._jackson_flow.step_11_vdi_tab()
+
+        except Exception as e:
+            logger.warning(f"[JACKSON SUMMARY] Cleanup error (continuing): {e}")
+
+        # Verify we're back at the lobby
+        self.verify_lobby()
+
+    def _cleanup_with_patient_detail_open(self):
+        """
+        Cleanup Jackson EMR session when patient detail is open.
+        Performs TWO close actions: first patient detail, then patient list.
+        Used when: Agent failed during ReportFinder phase (patient detail already open)
+        """
+        logger.info("[JACKSON SUMMARY] Performing cleanup (patient detail + list)...")
+        try:
+            screen_w, screen_h = pyautogui.size()
+
+            # Click on screen center to ensure window has focus
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            # First close: Close the patient detail view with Alt+F4
+            logger.info("[JACKSON SUMMARY] Sending Alt+F4 to close patient detail...")
+            pydirectinput.keyDown("alt")
+            stoppable_sleep(0.1)
+            pydirectinput.press("f4")
+            stoppable_sleep(0.1)
+            pydirectinput.keyUp("alt")
+
+            # Wait for the window to close
+            stoppable_sleep(5)
+
+            # Click on screen center again to focus the next window
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            # Second close: Close the patient list/Jackson main window with Alt+F4
+            logger.info("[JACKSON SUMMARY] Sending Alt+F4 to close Jackson list...")
             pydirectinput.keyDown("alt")
             stoppable_sleep(0.1)
             pydirectinput.press("f4")

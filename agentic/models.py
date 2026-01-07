@@ -68,6 +68,28 @@ class UIElement(BaseModel):
         return f"ID {self.id}: [{self.type}] '{self.content}' at {self.center}"
 
 
+class ROI(BaseModel):
+    """
+    Region of Interest for masked screen capture.
+
+    Attributes:
+        x: Left coordinate
+        y: Top coordinate
+        w: Width
+        h: Height
+    """
+
+    x: int
+    y: int
+    w: int
+    h: int
+
+    @property
+    def bbox(self) -> Tuple[int, int, int, int]:
+        """Returns (x1, y1, x2, y2) for PIL.crop()"""
+        return (self.x, self.y, self.x + self.w, self.y + self.h)
+
+
 class ParsedScreen(BaseModel):
     """
     Result of OmniParser analysis.

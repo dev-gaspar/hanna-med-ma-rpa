@@ -6,8 +6,11 @@ Analyzes screenshots to detect UI elements with bounding boxes.
 import json
 import os
 import re
+import time
+import threading
 from typing import List, Optional
 
+import httpx
 import pyautogui
 import replicate
 
@@ -27,8 +30,14 @@ class OmniParserClient:
     # Default model configuration
     DEFAULT_MODEL = "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df"
     DEFAULT_IMGSZ = 1024
-    DEFAULT_BOX_THRESHOLD = 0.05
-    DEFAULT_IOU_THRESHOLD = 0.1
+    DEFAULT_BOX_THRESHOLD = 0.03  # Lower for VDI (detects blurry text better)
+    DEFAULT_IOU_THRESHOLD = 0.15  # Higher to reduce duplicate boxes
+
+    # Retry configuration for API calls
+    MAX_RETRIES = 3
+    RETRY_DELAY_SECONDS = 5
+    # Extended timeout: 5 minutes for read, 30s for connect
+    API_TIMEOUT = httpx.Timeout(300.0, connect=30.0)
 
     def __init__(
         self,
@@ -73,40 +82,99 @@ class OmniParserClient:
             "agentic.omniparser_iou_threshold", self.DEFAULT_IOU_THRESHOLD
         )
 
+        # Retry settings from config (with defaults)
+        self.max_retries = config.get_rpa_setting(
+            "agentic.omniparser_max_retries", self.MAX_RETRIES
+        )
+        self.retry_delay = config.get_rpa_setting(
+            "agentic.omniparser_retry_delay", self.RETRY_DELAY_SECONDS
+        )
+
         logger.info(f"[OMNIPARSER] Initialized with model: {self.model[:50]}...")
 
     def parse_image(
-        self, image_data_url: str, screen_size: tuple = None
+        self, image_data_url: str, screen_size: tuple = None, imgsz_override: int = None
     ) -> ParsedScreen:
         """
         Parse an image and detect UI elements.
+        Includes automatic retry logic for timeout errors.
 
         Args:
             image_data_url: Image as data URL (data:image/png;base64,...)
             screen_size: Optional screen size (width, height) for coordinate scaling
+            imgsz_override: Optional override for imgsz (useful when image is upscaled)
 
         Returns:
             ParsedScreen with detected elements
+
+        Raises:
+            Exception: If all retry attempts fail
         """
-        logger.info("[OMNIPARSER] Sending image for analysis...")
+        last_error = None
+        # Use override if provided, otherwise use instance default
+        imgsz = imgsz_override if imgsz_override is not None else self.imgsz
 
-        try:
-            output = replicate.run(
-                self.model,
-                input={
-                    "image": image_data_url,
-                    "imgsz": self.imgsz,
-                    "box_threshold": self.box_threshold,
-                    "iou_threshold": self.iou_threshold,
-                },
-            )
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(
+                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} - Sending image for analysis (imgsz={imgsz})..."
+                )
 
-            logger.info("[OMNIPARSER] Analysis complete, parsing response...")
-            return self._parse_response(output, screen_size)
+                output = replicate.run(
+                    self.model,
+                    input={
+                        "image": image_data_url,
+                        "imgsz": imgsz,
+                        "box_threshold": self.box_threshold,
+                        "iou_threshold": self.iou_threshold,
+                    },
+                )
 
-        except Exception as e:
-            logger.error(f"[OMNIPARSER] API error: {e}")
-            raise
+                logger.info("[OMNIPARSER] Analysis complete, parsing response...")
+                return self._parse_response(output, screen_size)
+
+            except (
+                httpx.ReadTimeout,
+                httpx.TimeoutException,
+                httpx.ConnectTimeout,
+            ) as e:
+                last_error = e
+                logger.warning(
+                    f"[OMNIPARSER] Attempt {attempt}/{self.max_retries} timeout: {e}"
+                )
+
+                if attempt < self.max_retries:
+                    logger.info(
+                        f"[OMNIPARSER] Retrying in {self.retry_delay} seconds..."
+                    )
+                    time.sleep(self.retry_delay)
+
+            except Exception as e:
+                error_str = str(e).lower()
+
+                # Handle rate limit errors (Replicate API throttling)
+                if "throttled" in error_str or "rate limit" in error_str:
+                    last_error = e
+                    # Exponential backoff: 5s, 10s, 20s...
+                    wait_time = self.retry_delay * (2 ** (attempt - 1))
+                    logger.warning(
+                        f"[OMNIPARSER] Rate limit hit (attempt {attempt}/{self.max_retries}). "
+                        f"Waiting {wait_time}s before retry..."
+                    )
+
+                    if attempt < self.max_retries:
+                        time.sleep(wait_time)
+                        continue
+                else:
+                    # For other non-recoverable errors, log and re-raise immediately
+                    logger.error(f"[OMNIPARSER] API error (non-recoverable): {e}")
+                    raise
+
+        # All retries exhausted
+        logger.error(
+            f"[OMNIPARSER] All {self.max_retries} attempts failed. Last error: {last_error}"
+        )
+        raise last_error
 
     def parse_screen(self, screen_size: tuple = None) -> ParsedScreen:
         """
@@ -298,6 +366,7 @@ class OmniParserClient:
 
 # Singleton instance
 _client_instance: Optional[OmniParserClient] = None
+_warmup_thread: Optional[threading.Thread] = None
 
 
 def get_omniparser_client() -> OmniParserClient:
@@ -306,3 +375,65 @@ def get_omniparser_client() -> OmniParserClient:
     if _client_instance is None:
         _client_instance = OmniParserClient()
     return _client_instance
+
+
+def start_warmup_async() -> threading.Thread:
+    """
+    Start OmniParser warmup in a background thread.
+    Call this at the beginning of a flow to pre-heat the API.
+
+    Returns:
+        The warmup thread (can be joined later if needed)
+    """
+    global _warmup_thread
+
+    def _do_warmup():
+        try:
+            client = get_omniparser_client()
+            logger.info("[OMNIPARSER] Warmup: Capturing screen...")
+
+            # Capture current screen
+            image_data_url = capture_screen_data_url()
+
+            # Parse to warm up the API
+            logger.info("[OMNIPARSER] Warmup: Sending to API...")
+            result = client.parse_image(image_data_url)
+
+            logger.info(
+                f"[OMNIPARSER] Warmup complete - detected {len(result.elements)} elements"
+            )
+        except Exception as e:
+            logger.warning(f"[OMNIPARSER] Warmup failed (non-critical): {e}")
+
+    _warmup_thread = threading.Thread(target=_do_warmup, daemon=True)
+    _warmup_thread.start()
+    logger.info("[OMNIPARSER] Warmup started in background")
+    return _warmup_thread
+
+
+def wait_for_warmup(timeout: float = 60.0) -> bool:
+    """
+    Wait for the warmup thread to complete.
+
+    Args:
+        timeout: Maximum seconds to wait
+
+    Returns:
+        True if warmup completed, False if timed out or no warmup running
+    """
+    global _warmup_thread
+
+    if _warmup_thread is None:
+        return True  # No warmup to wait for
+
+    if not _warmup_thread.is_alive():
+        return True  # Already finished
+
+    logger.info(f"[OMNIPARSER] Waiting for warmup to complete (max {timeout}s)...")
+    _warmup_thread.join(timeout=timeout)
+
+    if _warmup_thread.is_alive():
+        logger.warning("[OMNIPARSER] Warmup still running after timeout")
+        return False
+
+    return True

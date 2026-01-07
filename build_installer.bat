@@ -33,6 +33,18 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo.
+echo [2.5/4] Checking Python syntax...
+python scripts\check_syntax.py
+if errorlevel 1 (
+    echo.
+    echo ========================================
+    echo BUILD ABORTED - Fix syntax errors first!
+    echo ========================================
+    pause
+    exit /b 1
+)
+
+echo.
 echo [3/4] Compiling executable with PyInstaller...
 echo This may take several minutes...
 pyinstaller hannamed-rpa.spec

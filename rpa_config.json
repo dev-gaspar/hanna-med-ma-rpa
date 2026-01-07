@@ -1,140 +1,299 @@
 {
-    "n8n_list_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-data",
-    "n8n_error_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-error",
-    "n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
-    "screen_resolution": "1366x768",
-    "available_resolutions": [
-        "1366x768",
-        "1024x768"
-    ],
-    "aws": {
-        "access_key_id": "${AWS_ACCESS_KEY_ID}",
-        "secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
-        "bucket_name": "answer-clinic-dev",
-        "region": "us-east-1",
-        "s3_prefix": "baptist-health"
-    },
-    "hospitals": [
-        {
-            "name": "HH-South Florida Foot_Ankle Institute",
-            "tab_image": "images/{resolution}/baptist/patient_list_tab.png",
-            "index": 1,
-            "display_name": "Hospital_1"
-        },
-        {
-            "name": "smh - South Florida Foot _Ankle Institute, LL",
-            "tab_image": "images/{resolution}/baptist/hospital_tab_2.png",
-            "index": 2,
-            "display_name": "Hospital_2"
-        },
-        {
-            "name": "wkbh - South Florida Foot _Ankle Institute, LL",
-            "tab_image": "images/{resolution}/baptist/hospital_tab_3.png",
-            "index": 3,
-            "display_name": "Hospital_3"
-        },
-        {
-            "name": "BHM South Florida Foot _Ankle Institute, LL",
-            "tab_image": "images/{resolution}/baptist/hospital_tab_4.png",
-            "index": 4,
-            "display_name": "Hospital_4"
-        }
-    ],
-    "images": {
-        "lobby": "images/{resolution}/common/lobby.png",
-        "ok_modal": "images/{resolution}/common/ok_modal.png",
-        "vdi_icon": "images/{resolution}/baptist/vdi_desktop_icon.png",
-        "edge_icon": "images/{resolution}/baptist/edge_desktop_icon.png",
-        "email_input": "images/{resolution}/baptist/email_input.png",
-        "saved_password": "images/{resolution}/baptist/saved_password_tooltip.png",
-        "pineapple_menu": "images/{resolution}/baptist/pineapple_connect_menu.png",
-        "pineapple_modal": "images/{resolution}/baptist/pineapple_connect_modal.png",
-        "cerner": "images/{resolution}/baptist/cerner_bhsf.png",
-        "log_on_cerner": "images/{resolution}/baptist/log_on_cerner.png",
-        "favorites_tab": "images/{resolution}/baptist/favorites_tab.png",
-        "powerchart": "images/{resolution}/baptist/powerchart_p574.png",
-        "patient_list": "images/{resolution}/baptist/patient_list_tab.png",
-        "horizon_menu": "images/{resolution}/baptist/horizon_three_dots.png",
-        "horizon_close": "images/{resolution}/baptist/horizon_close_session.png",
-        "accept_alert": "images/{resolution}/baptist/accept_alert_button.png",
-        "baptist_report_document": "images/{resolution}/baptist/step_report_document.png",
-        "baptist_print_powerchart": "images/{resolution}/baptist/step_print_powerchart.png",
-        "baptist_report_pdf": "images/{resolution}/baptist/baptis_report_pdf.png",
-        "jackson_tab": "images/{resolution}/jackson/step1_tab_jackson.png",
-        "jackson_powered": "images/{resolution}/jackson/step2_powered_jackson.png",
-        "jackson_open_download": "images/{resolution}/jackson/step3_open_download_powered.png",
-        "jackson_username": "images/{resolution}/jackson/step4_input_username.png",
-        "jackson_password": "images/{resolution}/jackson/step5_input_password.png",
-        "jackson_login_ok": "images/{resolution}/jackson/step6_login_ok.png",
-        "jackson_patient_list": "images/{resolution}/jackson/step7_patient_list_tab.png",
-        "jackson_hospital_tab": "images/{resolution}/jackson/step8_hospital_tab.png",
-        "jackson_cerner_close": "images/{resolution}/jackson/cerner_close.png",
-        "jackson_vdi_tab": "images/{resolution}/jackson/step9_vdi_desktop_tab.png",
-        "jackson_acknowledge": "images/{resolution}/jackson/acknowledge_btn.png",
-        "jackson_announcement_modal": "images/{resolution}/jackson/announcement_modal.png",
-        "jackson_announcement_dont_show": "images/{resolution}/jackson/announcement_dont_show.png",
-        "jackson_report_document": "images/{resolution}/jackson/step_report_document.png",
-        "jackson_announcement_close": "images/{resolution}/jackson/announcement_close.png",
-        "jackson_info_modal": "images/{resolution}/jackson/info_modal.png",
-        "steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
-        "steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
-        "steward_meditech": "images/{resolution}/steward/step3_meditech.png",
-        "steward_login_window": "images/{resolution}/steward/login_window.png",
-        "steward_password_window": "images/{resolution}/steward/password_window.png",
-        "steward_sesion_meditech": "images/{resolution}/steward/step4_sesion_meditech.png",
-        "steward_load_menu_5": "images/{resolution}/steward/step5_load_menu.png",
-        "steward_load_menu_6": "images/{resolution}/steward/step6_load_menu.png",
-        "steward_lista": "images/{resolution}/steward/step7_lista.png",
-        "steward_tab_pdf": "images/{resolution}/steward/step8_tab_pdf.png",
-        "steward_close_tab": "images/{resolution}/steward/step9_close_tab.png",
-        "steward_close_modal": "images/{resolution}/steward/step10_close_modal.png",
-        "steward_cancel_modal": "images/{resolution}/steward/step11_cancel_modal.png",
-        "steward_close_meditech": "images/{resolution}/steward/step12_close_meditech.png",
-        "steward_tab_logged_out": "images/{resolution}/steward/step13_tab_logged_out.png",
-        "steward_url": "images/{resolution}/steward/step14_url.png",
-        "steward_vdi_desktop_tab": "images/{resolution}/steward/step15_vdi_desktop_tab.png",
-        "steward_status_sesion_abierta": "images/{resolution}/steward/status_sesion_abierta.png",
-        "steward_reset_sesion": "images/{resolution}/steward/reset_sesion_btn.png",
-        "steward_terminate_sesion": "images/{resolution}/steward/terminate_sesion_btn.png",
-        "steward_horizon_printer_ok": "images/{resolution}/steward/horizon_printer_ok.png",
-        "steward_save_pdf_dropdown": "images/{resolution}/steward/save_pdf_dropdown.png",
-        "steward_horizon_printer_option": "images/{resolution}/steward/horizon_printer_option.png",
-        "steward_print_btn": "images/{resolution}/steward/print_btn.png",
-        "steward_sign_list": "images/{resolution}/steward/sign_list_popup.png",
-        "steward_sign_list_obstacle": "images/{resolution}/steward/sign_list_obstacle.png",
-        "steward_leave_now_btn": "images/{resolution}/steward/leave_now_btn.png"
-    },
-    "timeouts": {
-        "default": 60,
-        "login": 120,
-        "powerchart_open": 120,
-        "vdi_open": 30,
-        "edge_open": 120,
-        "pineapple_connect": 300,
-        "cerner_open": 120,
-        "cerner_login": 120,
-        "horizon_close": 120
-    },
-    "confidence": 0.8,
-    "retry": {
-        "max_attempts": 3,
-        "delay_seconds": 0.5
-    },
-    "server": {
-        "host": "0.0.0.0",
-        "port": 8000
-    },
-    "heartbeat_interval_seconds": 300,
-    "agentic": {
-        "jackson_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-jackson-summary",
-        "baptist_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-baptist-summary",
-        "replicate_api_key": "${REPLICATE_API_KEY}",
-        "omniparser_model": "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df",
-        "omniparser_imgsz": 1024,
-        "omniparser_box_threshold": 0.05,
-        "omniparser_iou_threshold": 0.1,
-        "max_steps": 50,
-        "step_delay_seconds": 1,
-        "request_timeout_seconds": 120
-    }
+	"n8n_list_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-data",
+	"n8n_error_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-error",
+	"n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
+	"n8n_batch_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-batch-patient-summary",
+	"screen_resolution": "1366x768",
+	"available_resolutions": [
+		"1366x768",
+		"1024x768"
+	],
+	"aws": {
+		"access_key_id": "${AWS_ACCESS_KEY_ID}",
+		"secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
+		"bucket_name": "answer-clinic-dev",
+		"region": "us-east-1",
+		"s3_prefix": "baptist-health"
+	},
+	"hospitals": [
+		{
+			"name": "HH-South Florida Foot_Ankle Institute",
+			"tab_image": "images/{resolution}/baptist/patient_list_tab.png",
+			"index": 1,
+			"display_name": "Hospital_1"
+		},
+		{
+			"name": "smh - South Florida Foot _Ankle Institute, LL",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_2.png",
+			"index": 2,
+			"display_name": "Hospital_2"
+		},
+		{
+			"name": "wkbh - South Florida Foot _Ankle Institute, LL",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_3.png",
+			"index": 3,
+			"display_name": "Hospital_3"
+		},
+		{
+			"name": "BHM South Florida Foot _Ankle Institute, LL",
+			"tab_image": "images/{resolution}/baptist/hospital_tab_4.png",
+			"index": 4,
+			"display_name": "Hospital_4"
+		}
+	],
+	"images": {
+		"lobby": "images/{resolution}/common/lobby.png",
+		"ok_modal": "images/{resolution}/common/ok_modal.png",
+		"vdi_icon": "images/{resolution}/baptist/vdi_desktop_icon.png",
+		"edge_icon": "images/{resolution}/baptist/edge_desktop_icon.png",
+		"email_input": "images/{resolution}/baptist/email_input.png",
+		"saved_password": "images/{resolution}/baptist/saved_password_tooltip.png",
+		"pineapple_menu": "images/{resolution}/baptist/pineapple_connect_menu.png",
+		"pineapple_modal": "images/{resolution}/baptist/pineapple_connect_modal.png",
+		"cerner": "images/{resolution}/baptist/cerner_bhsf.png",
+		"log_on_cerner": "images/{resolution}/baptist/log_on_cerner.png",
+		"favorites_tab": "images/{resolution}/baptist/favorites_tab.png",
+		"powerchart": "images/{resolution}/baptist/powerchart_p574.png",
+		"patient_list": "images/{resolution}/baptist/patient_list_tab.png",
+		"horizon_menu": "images/{resolution}/baptist/horizon_three_dots.png",
+		"horizon_close": "images/{resolution}/baptist/horizon_close_session.png",
+		"accept_alert": "images/{resolution}/baptist/accept_alert_button.png",
+		"baptist_report_document": "images/{resolution}/baptist/step_report_document.png",
+		"baptist_print_powerchart": "images/{resolution}/baptist/step_print_powerchart.png",
+		"baptist_report_pdf": "images/{resolution}/baptist/baptis_report_pdf.png",
+		"baptist_nav_arrow_up": "images/{resolution}/baptist/nav_arrow_up.png",
+		"baptist_nav_arrow_down": "images/{resolution}/baptist/nav_arrow_down.png",
+		"baptist_notes_menu": "images/{resolution}/baptist/notes_menu.png",
+		"baptist_fullscreen_btn": "images/{resolution}/baptist/fullscreen_btn.png",
+		"baptist_normalscreen_btn": "images/{resolution}/baptist/normalscreen_btn.png",
+		"baptist_assign_relationship_ok": "images/{resolution}/baptist/assign_relationship_ok.png",
+		"baptist_patient_list_header": "images/{resolution}/baptist/patient_list_header.png",
+		"jackson_tab": "images/{resolution}/jackson/step1_tab_jackson.png",
+		"jackson_powered": "images/{resolution}/jackson/step2_powered_jackson.png",
+		"jackson_open_download": "images/{resolution}/jackson/step3_open_download_powered.png",
+		"jackson_username": "images/{resolution}/jackson/step4_input_username.png",
+		"jackson_password": "images/{resolution}/jackson/step5_input_password.png",
+		"jackson_login_ok": "images/{resolution}/jackson/step6_login_ok.png",
+		"jackson_patient_list": "images/{resolution}/jackson/step7_patient_list_tab.png",
+		"jackson_hospital_tab": "images/{resolution}/jackson/step8_hospital_tab.png",
+		"jackson_cerner_close": "images/{resolution}/jackson/cerner_close.png",
+		"jackson_vdi_tab": "images/{resolution}/jackson/step9_vdi_desktop_tab.png",
+		"jackson_acknowledge": "images/{resolution}/jackson/acknowledge_btn.png",
+		"jackson_announcement_modal": "images/{resolution}/jackson/announcement_modal.png",
+		"jackson_announcement_dont_show": "images/{resolution}/jackson/announcement_dont_show.png",
+		"jackson_report_document": "images/{resolution}/jackson/step_report_document.png",
+		"jackson_announcement_close": "images/{resolution}/jackson/announcement_close.png",
+		"jackson_info_modal": "images/{resolution}/jackson/info_modal.png",
+		"jackson_nav_arrow_up": "images/{resolution}/jackson/nav_arrow_up.png",
+		"jackson_nav_arrow_down": "images/{resolution}/jackson/nav_arrow_down.png",
+		"jackson_notes_menu": "images/{resolution}/jackson/notes_menu.png",
+		"jackson_fullscreen_btn": "images/{resolution}/jackson/fullscreen_btn.png",
+		"jackson_normalscreen_btn": "images/{resolution}/jackson/normalscreen_btn.png",
+		"jackson_same_name_alert_ok": "images/{resolution}/jackson/same_name_alert_ok.png",
+		"jackson_assign_relationship_ok": "images/{resolution}/jackson/assign_relationship_ok.png",
+		"jackson_patient_list_header": "images/{resolution}/jackson/patient_list_header.png",
+		"steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
+		"steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
+		"steward_meditech": "images/{resolution}/steward/step3_meditech.png",
+		"steward_login_window": "images/{resolution}/steward/login_window.png",
+		"steward_password_window": "images/{resolution}/steward/password_window.png",
+		"steward_sesion_meditech": "images/{resolution}/steward/step4_sesion_meditech.png",
+		"steward_load_menu_5": "images/{resolution}/steward/step5_load_menu.png",
+		"steward_load_menu_6": "images/{resolution}/steward/step6_load_menu.png",
+		"steward_lista": "images/{resolution}/steward/step7_lista.png",
+		"steward_tab_pdf": "images/{resolution}/steward/step8_tab_pdf.png",
+		"steward_close_tab": "images/{resolution}/steward/step9_close_tab.png",
+		"steward_close_modal": "images/{resolution}/steward/step10_close_modal.png",
+		"steward_cancel_modal": "images/{resolution}/steward/step11_cancel_modal.png",
+		"steward_close_meditech": "images/{resolution}/steward/step12_close_meditech.png",
+		"steward_tab_logged_out": "images/{resolution}/steward/step13_tab_logged_out.png",
+		"steward_url": "images/{resolution}/steward/step14_url.png",
+		"steward_vdi_desktop_tab": "images/{resolution}/steward/step15_vdi_desktop_tab.png",
+		"steward_status_sesion_abierta": "images/{resolution}/steward/status_sesion_abierta.png",
+		"steward_reset_sesion": "images/{resolution}/steward/reset_sesion_btn.png",
+		"steward_terminate_sesion": "images/{resolution}/steward/terminate_sesion_btn.png",
+		"steward_horizon_printer_ok": "images/{resolution}/steward/horizon_printer_ok.png",
+		"steward_save_pdf_dropdown": "images/{resolution}/steward/save_pdf_dropdown.png",
+		"steward_horizon_printer_option": "images/{resolution}/steward/horizon_printer_option.png",
+		"steward_print_btn": "images/{resolution}/steward/print_btn.png",
+		"steward_sign_list": "images/{resolution}/steward/sign_list_popup.png",
+		"steward_sign_list_obstacle": "images/{resolution}/steward/sign_list_obstacle.png",
+		"steward_leave_now_btn": "images/{resolution}/steward/leave_now_btn.png"
+	},
+	"timeouts": {
+		"default": 60,
+		"login": 120,
+		"powerchart_open": 120,
+		"vdi_open": 30,
+		"edge_open": 120,
+		"pineapple_connect": 300,
+		"cerner_open": 120,
+		"cerner_login": 120,
+		"horizon_close": 120
+	},
+	"confidence": 0.8,
+	"retry": {
+		"max_attempts": 3,
+		"delay_seconds": 0.5
+	},
+	"server": {
+		"host": "0.0.0.0",
+		"port": 8000
+	},
+	"heartbeat_interval_seconds": 300,
+	"agentic": {
+		"jackson_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-jackson-summary",
+		"baptist_summary_brain_url": "https://n8n-dev.hannamedma.com/webhook/agentic-baptist-summary",
+		"replicate_api_key": "${REPLICATE_API_KEY}",
+		"google_api_key": "${GOOGLE_API_KEY}",
+		"omniparser_model": "microsoft/omniparser-v2:49cf3d41b8d3aca1360514e83be4c97131ce8f0d99abfc365526d8384caa88df",
+		"omniparser_imgsz": 1024,
+		"omniparser_box_threshold": 0.05,
+		"omniparser_iou_threshold": 0.1,
+		"max_steps": 50,
+		"step_delay_seconds": 1,
+		"request_timeout_seconds": 120
+	},
+	"roi_definitions": {
+		"jackson": {
+			"1024x768": {
+				"patient_finder": [
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
+			},
+			"1366x768": {
+				"patient_finder": [
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
+			}
+		},
+		"baptist": {
+			"1024x768": {
+				"patient_finder": [
+					"hospital_tabs",
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
+			},
+			"1366x768": {
+				"patient_finder": [
+					"hospital_tabs",
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
+			}
+		}
+	},
+	"roi_regions": {
+		"jackson": {
+			"1024x768": {
+				"patient_list": {
+					"x": 18,
+					"y": 213,
+					"w": 986,
+					"h": 481
+				},
+				"notes_tree": {
+					"x": 234,
+					"y": 201,
+					"w": 150,
+					"h": 322
+				},
+				"report_content": {
+					"x": 388,
+					"y": 201,
+					"w": 583,
+					"h": 497
+				}
+			},
+			"1366x768": {
+				"patient_list": {
+					"x": 18,
+					"y": 213,
+					"w": 986,
+					"h": 481
+				},
+				"notes_tree": {
+					"x": 234,
+					"y": 201,
+					"w": 150,
+					"h": 322
+				},
+				"report_content": {
+					"x": 388,
+					"y": 201,
+					"w": 583,
+					"h": 497
+				}
+			}
+		},
+		"baptist": {
+			"1024x768": {
+				"hospital_tabs": {
+					"x": 5,
+					"y": 191,
+					"w": 800,
+					"h": 27
+				},
+				"patient_list": {
+					"x": 11,
+					"y": 241,
+					"w": 1006,
+					"h": 365
+				},
+				"notes_tree": {
+					"x": 274,
+					"y": 257,
+					"w": 126,
+					"h": 213
+				},
+				"report_content": {
+					"x": 398,
+					"y": 256,
+					"w": 587,
+					"h": 359
+				}
+			},
+			"1366x768": {
+				"hospital_tabs": {
+					"x": 5,
+					"y": 191,
+					"w": 800,
+					"h": 27
+				},
+				"patient_list": {
+					"x": 11,
+					"y": 241,
+					"w": 1006,
+					"h": 365
+				},
+				"notes_tree": {
+					"x": 274,
+					"y": 257,
+					"w": 126,
+					"h": 213
+				},
+				"report_content": {
+					"x": 398,
+					"y": 256,
+					"w": 587,
+					"h": 359
+				}
+			}
+		}
+	}
 }
