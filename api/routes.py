@@ -6,9 +6,10 @@ from fastapi import APIRouter, BackgroundTasks
 
 from core.rpa_engine import (
     rpa_state,
-    enqueue_request,
+    enqueue_and_should_start_processor,
     dequeue_request,
     get_queue_status,
+    mark_processor_finished,
 )
 from flows import (
     BaptistFlow,
@@ -279,32 +280,35 @@ def process_queue():
 
     logger.info("[QUEUE] Starting queue processor")
 
-    while True:
-        request = dequeue_request()
-        if not request:
-            logger.info("[QUEUE] No more requests, queue empty")
-            break
+    try:
+        while True:
+            request = dequeue_request()
+            if not request:
+                logger.info("[QUEUE] No more requests, queue empty")
+                break
 
-        hospital_type = request.get("hospital_type", "UNKNOWN")
-        logger.info(f"[QUEUE] Processing next: {hospital_type}")
+            hospital_type = request.get("hospital_type", "UNKNOWN")
+            logger.info(f"[QUEUE] Processing next: {hospital_type}")
 
-        try:
-            flow = get_flow_for_hospital(hospital_type)
-            flow.run(
-                request["execution_id"],
-                request["sender"],
-                request["instance"],
-                request["trigger_type"],
-                request["doctor_name"],
-                request.get("credentials"),
-            )
-        except Exception as e:
-            logger.error(f"[QUEUE] Error processing {hospital_type}: {str(e)}")
+            try:
+                flow = get_flow_for_hospital(hospital_type)
+                flow.run(
+                    request["execution_id"],
+                    request["sender"],
+                    request["instance"],
+                    request["trigger_type"],
+                    request["doctor_name"],
+                    request.get("credentials"),
+                )
+            except Exception as e:
+                logger.error(f"[QUEUE] Error processing {hospital_type}: {str(e)}")
 
-        # Small pause between flows to let the VDI stabilize
-        time.sleep(2)
-
-    logger.info("[QUEUE] Queue processor finished")
+            # Small pause between flows to let the VDI stabilize
+            time.sleep(2)
+    finally:
+        # CRITICAL: Always mark processor as finished to allow new processor to start
+        mark_processor_finished()
+        logger.info("[QUEUE] Queue processor finished")
 
 
 @router.post("/queue-rpa-flow", response_model=QueueRPAResponse)
@@ -326,14 +330,15 @@ async def queue_rpa_flow(body: QueueRPARequest, background_tasks: BackgroundTask
         "batch_id": body.batch_id,
     }
 
-    position = enqueue_request(request_data)
+    # ATOMIC: Enqueue and decide if we should start processor
+    position, should_start = enqueue_and_should_start_processor(request_data)
+
     logger.info(
-        f"[QUEUE] Request queued: {body.hospital_type.value} at position {position}"
+        f"[QUEUE] Request queued: {body.hospital_type.value} at position {position}, start_processor={should_start}"
     )
 
-    # If RPA is idle, start processing the queue
-    if rpa_state["status"] == "idle":
-        logger.info("[QUEUE] RPA is idle, starting queue processor")
+    if should_start:
+        logger.info("[QUEUE] Starting queue processor")
         background_tasks.add_task(process_queue)
 
     return {
