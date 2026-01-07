@@ -7,6 +7,8 @@ import pyautogui
 import pydirectinput
 import pyperclip
 
+from logger import logger
+
 from .system_utils import (
     send_key_windows,
     send_text_windows,
@@ -48,7 +50,9 @@ def type_with_clipboard(text):
     - Uses clipboard (Ctrl+V) which works best in VDI browsers
     - Slow delays for clipboard sync across VDI layers
     """
-    print(f"[TYPE_CLIP] Typing text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
+    logger.debug(
+        f"[TYPE_CLIP] Typing text: '{text[:50]}{'...' if len(text) > 50 else ''}'"
+    )
 
     try:
         # Clear clipboard first to avoid stale data
@@ -68,17 +72,19 @@ def type_with_clipboard(text):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("ctrl")
 
-        print("[TYPE_CLIP] Text pasted successfully")
+        logger.debug("[TYPE_CLIP] Text pasted successfully")
 
         # LONGER WAIT: Allow VDI to process the paste before next operation
         stoppable_sleep(1.0)
 
     except Exception as e:
-        print(f"[TYPE_CLIP] Failed to paste text: {e}, falling back to SendInput")
+        logger.warning(
+            f"[TYPE_CLIP] Failed to paste text: {e}, falling back to SendInput"
+        )
         try:
             send_text_windows(text)
         except Exception as e2:
-            print(f"[TYPE_CLIP] Fallback also failed: {e2}")
+            logger.error(f"[TYPE_CLIP] Fallback also failed: {e2}")
             raise
 
 
@@ -91,7 +97,9 @@ def press_key_vdi(key_name):
         pydirectinput.press(key_name)
         stoppable_sleep(0.2)
     except Exception as e:
-        print(f"[KEY_PRESS] pydirectinput failed: {e}, falling back to SendInput")
+        logger.warning(
+            f"[KEY_PRESS] pydirectinput failed: {e}, falling back to SendInput"
+        )
 
         # Fallback to SendInput
         key_map = {
@@ -114,7 +122,7 @@ def press_key_vdi(key_name):
             send_key_windows(vk_code)
             stoppable_sleep(0.2)
         except Exception as e2:
-            print(f"[KEY_PRESS] Fallback also failed: {e2}")
+            logger.error(f"[KEY_PRESS] Fallback also failed: {e2}")
             raise
 
 

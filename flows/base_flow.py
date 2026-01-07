@@ -27,6 +27,7 @@ class BaseFlow(RPABotBase, ABC):
     # Override in subclasses
     FLOW_NAME = "base"
     FLOW_TYPE = "base_flow"
+    EMR_TYPE = "base"  # Override: "jackson", "baptist", "steward"
     N8N_LIST_WEBHOOK_URL = config.get_rpa_setting("n8n_list_webhook_url")
     N8N_ERROR_WEBHOOK_URL = config.get_rpa_setting("n8n_error_webhook_url")
     N8N_SUMMARY_WEBHOOK_URL = config.get_rpa_setting("n8n_summary_webhook_url")
@@ -328,6 +329,87 @@ class BaseFlow(RPABotBase, ABC):
         screenshot_url = s3_client.generate_presigned_url(filename)
 
         return screenshot_url
+
+    # =========================================================================
+    # Fullscreen Toggle Methods (EMR-agnostic)
+    # =========================================================================
+
+    def _click_fullscreen(self):
+        """
+        Click fullscreen button for better visualization.
+        Uses EMR_TYPE to find the correct image in config.
+        """
+        img_key = f"images.{self.EMR_TYPE.lower()}_fullscreen_btn"
+        fullscreen_img = config.get_rpa_setting(img_key)
+        if not fullscreen_img:
+            logger.warning(f"[{self.EMR_TYPE.upper()}] Fullscreen image not configured")
+            return
+        try:
+            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info(f"[{self.EMR_TYPE.upper()}] Clicked fullscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(f"[{self.EMR_TYPE.upper()}] Fullscreen button not found")
+        except Exception as e:
+            logger.warning(f"[{self.EMR_TYPE.upper()}] Error clicking fullscreen: {e}")
+
+    def _click_normalscreen(self):
+        """
+        Click normalscreen button to restore view.
+        Uses EMR_TYPE to find the correct image in config.
+        """
+        img_key = f"images.{self.EMR_TYPE.lower()}_normalscreen_btn"
+        normalscreen_img = config.get_rpa_setting(img_key)
+        if not normalscreen_img:
+            logger.warning(
+                f"[{self.EMR_TYPE.upper()}] Normalscreen image not configured"
+            )
+            return
+        try:
+            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
+            if location:
+                pyautogui.click(pyautogui.center(location))
+                logger.info(f"[{self.EMR_TYPE.upper()}] Clicked normalscreen button")
+                stoppable_sleep(1)
+            else:
+                logger.warning(
+                    f"[{self.EMR_TYPE.upper()}] Normalscreen button not found"
+                )
+        except Exception as e:
+            logger.warning(
+                f"[{self.EMR_TYPE.upper()}] Error clicking normalscreen: {e}"
+            )
+
+    def _get_rois(self, agent_name: str = "patient_finder"):
+        """
+        Load ROI regions for the given agent from config.
+        Uses EMR_TYPE to find the correct regions.
+
+        Args:
+            agent_name: Agent type (patient_finder, report_finder, etc.)
+
+        Returns:
+            List of ROI objects ready for screen capture masking.
+        """
+        from agentic.models import ROI
+
+        roi_dicts = config.get_rois_for_agent(self.EMR_TYPE.lower(), agent_name)
+        rois = [ROI(**r) for r in roi_dicts]
+
+        if rois:
+            logger.info(
+                f"[{self.EMR_TYPE.upper()}] Loaded {len(rois)} ROI(s) for {agent_name}"
+            )
+        else:
+            logger.warning(f"[{self.EMR_TYPE.upper()}] No ROIs found for {agent_name}")
+
+        return rois
+
+    # =========================================================================
+    # Webhook Methods
+    # =========================================================================
 
     def _send_to_list_webhook_n8n(self, data):
         """Send data to the n8n list webhook (patient lists)."""

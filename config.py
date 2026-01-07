@@ -202,6 +202,38 @@ class Config:
         return (center_x, center_y)
 
     @staticmethod
+    def get_rois_for_agent(emr_type: str, agent_name: str) -> list:
+        """
+        Get ROI regions configured for a specific agent.
+
+        Args:
+            emr_type: EMR type ('jackson' or 'baptist')
+            agent_name: Agent name (e.g., 'patient_finder', 'report_finder')
+
+        Returns:
+            List of ROI dicts with x, y, w, h keys. Empty list if not configured.
+        """
+        resolution = Config.get_screen_resolution()
+        roi_definitions = Config.RPA_CONFIG.get("roi_definitions", {})
+        roi_regions = Config.RPA_CONFIG.get("roi_regions", {})
+
+        # Get region names for this agent
+        region_names = (
+            roi_definitions.get(emr_type, {}).get(resolution, {}).get(agent_name, [])
+        )
+        if not region_names:
+            return []
+
+        # Get actual region coordinates
+        regions = roi_regions.get(emr_type, {}).get(resolution, {})
+        rois = []
+        for name in region_names:
+            if name in regions:
+                rois.append(regions[name])
+
+        return rois
+
+    @staticmethod
     def get_timeout(timeout_name: str, default: int = 60) -> int:
         """Get specific timeout value in seconds"""
         return Config.get_rpa_setting(f"timeouts.{timeout_name}", default)

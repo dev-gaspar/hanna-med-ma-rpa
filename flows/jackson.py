@@ -9,6 +9,7 @@ import pydirectinput
 import pyperclip
 
 from config import config
+from logger import logger
 from core.s3_client import get_s3_client
 from core.vdi_input import stoppable_sleep
 
@@ -20,6 +21,7 @@ class JacksonFlow(BaseFlow):
 
     FLOW_NAME = "Jackson Health"
     FLOW_TYPE = "jackson_health_patient_list_capture"
+    EMR_TYPE = "JACKSON"
 
     def __init__(self):
         super().__init__()
@@ -72,7 +74,7 @@ class JacksonFlow(BaseFlow):
             "doctor_name": self.doctor_name,
         }
         response = self._send_to_list_webhook_n8n(payload)
-        print(f"\n[N8N] Notification sent - Status: {response.status_code}")
+        logger.info(f"[N8N] Notification sent - Status: {response.status_code}")
         return response
 
     # --- Flow Steps ---
@@ -80,7 +82,7 @@ class JacksonFlow(BaseFlow):
     def step_1_tab(self):
         """Click Jackson Tab."""
         self.set_step("STEP_1_TAB_JACKSON")
-        print("\n[STEP 1] Clicking Jackson Tab")
+        logger.info("[STEP 1] Clicking Jackson Tab")
 
         jackson_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_tab"),
@@ -94,13 +96,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Jackson Tab")
 
         stoppable_sleep(3)
-        print("[STEP 1] Jackson Tab clicked")
+        logger.info("[STEP 1] Jackson Tab clicked")
         return True
 
     def step_2_powered(self):
         """Click Powered Jackson."""
         self.set_step("STEP_2_POWERED_JACKSON")
-        print("\n[STEP 2] Clicking Powered Jackson")
+        logger.info("[STEP 2] Clicking Powered Jackson")
 
         powered_jackson = self.wait_for_element(
             config.get_rpa_setting("images.jackson_powered"),
@@ -115,13 +117,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Powered Jackson")
 
         stoppable_sleep(3)
-        print("[STEP 2] Powered Jackson clicked")
+        logger.info("[STEP 2] Powered Jackson clicked")
         return True
 
     def step_3_open_download(self):
         """Open Download Powered."""
         self.set_step("STEP_3_OPEN_DOWNLOAD")
-        print("\n[STEP 3] Opening Download")
+        logger.info("[STEP 3] Opening Download")
 
         open_download = self.wait_for_element(
             config.get_rpa_setting("images.jackson_open_download"),
@@ -136,13 +138,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Open Download")
 
         stoppable_sleep(5)
-        print("[STEP 3] Download opened")
+        logger.info("[STEP 3] Download opened")
         return True
 
     def step_4_username(self):
         """Enter Username."""
         self.set_step("STEP_4_USERNAME")
-        print("\n[STEP 4] Entering Username")
+        logger.info("[STEP 4] Entering Username")
 
         username_input = self.wait_for_element(
             config.get_rpa_setting("images.jackson_username"),
@@ -158,13 +160,13 @@ class JacksonFlow(BaseFlow):
         stoppable_sleep(1)
         pyautogui.write(self.username)
         stoppable_sleep(2)
-        print("[STEP 4] Username entered")
+        logger.info("[STEP 4] Username entered")
         return True
 
     def step_5_password(self):
         """Enter Password using clipboard paste (handles @ and special chars)."""
         self.set_step("STEP_5_PASSWORD")
-        print("\n[STEP 5] Entering Password")
+        logger.info("[STEP 5] Entering Password")
 
         password_input = self.wait_for_element(
             config.get_rpa_setting("images.jackson_password"),
@@ -194,13 +196,13 @@ class JacksonFlow(BaseFlow):
         pydirectinput.keyUp("ctrl")
 
         stoppable_sleep(2)
-        print("[STEP 5] Password entered")
+        logger.info("[STEP 5] Password entered")
         return True
 
     def step_6_login_ok(self):
         """Click Login OK."""
         self.set_step("STEP_6_LOGIN_OK")
-        print("\n[STEP 6] Clicking Login OK")
+        logger.info("[STEP 6] Clicking Login OK")
 
         login_ok = self.wait_for_element(
             config.get_rpa_setting("images.jackson_login_ok"),
@@ -214,13 +216,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Login OK")
 
         stoppable_sleep(5)
-        print("[STEP 6] Login completed")
+        logger.info("[STEP 6] Login completed")
         return True
 
     def step_7_patient_list(self):
         """Click Patient List Tab, handling any information modals."""
         self.set_step("STEP_7_PATIENT_LIST")
-        print("\n[STEP 7] Clicking Patient List Tab")
+        logger.info("[STEP 7] Clicking Patient List Tab")
 
         # Define handler for the acknowledge modal that may appear
         def handle_acknowledge_modal(location):
@@ -254,7 +256,7 @@ class JacksonFlow(BaseFlow):
         # Define handler for the info modal that may appear after login
         def handle_info_modal(location):
             """Handler to dismiss info modal by pressing Enter."""
-            print("[STEP 7] Info modal detected - pressing Enter to dismiss")
+            logger.info("[STEP 7] Info modal detected - pressing Enter to dismiss")
             pydirectinput.press("enter")
             stoppable_sleep(2)
 
@@ -287,13 +289,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Patient List Tab")
 
         stoppable_sleep(3)
-        print("[STEP 7] Patient List opened")
+        logger.info("[STEP 7] Patient List opened")
         return True
 
     def step_8_hospital_tab(self):
         """Click Hospital Tab."""
         self.set_step("STEP_8_HOSPITAL_TAB")
-        print("\n[STEP 8] Clicking Hospital Tab")
+        logger.info("[STEP 8] Clicking Hospital Tab")
 
         hospital_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_hospital_tab"),
@@ -307,23 +309,43 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Hospital Tab")
 
         stoppable_sleep(3)
-        print("[STEP 8] Hospital Tab clicked")
+        logger.info("[STEP 8] Hospital Tab clicked")
         return True
 
     def step_9_capture(self):
-        """Capture Screenshot."""
+        """Capture Screenshot with fullscreen toggle and ROI masking for OCR."""
         self.set_step("STEP_9_SCREENSHOT")
-        print("\n[STEP 9] Capturing Screenshot")
+        logger.info("[STEP 9] Capturing Screenshot")
 
-        screenshot_data = self.s3_client.capture_screenshot_for_hospital(
-            "South Florida Foot And Ankle Institut", "Hospital_1", 1, self.execution_id
+        # Enter fullscreen for better ROI alignment
+        self._click_fullscreen()
+        stoppable_sleep(5)
+
+        # Load ROIs from config using base class method
+        rois = self._get_rois("patient_finder")
+
+        # Capture with ROI mask (no VDI enhancement for Jackson)
+        screenshot_data = self.s3_client.capture_screenshot_with_processing(
+            "South Florida Foot And Ankle Institut",
+            "Hospital_1",
+            1,
+            self.execution_id,
+            rois=rois,
+            enhance=False,  # Jackson: mask only, no enhancement
         )
+
+        # Exit fullscreen
+        self._click_normalscreen()
+        stoppable_sleep(5)
+
         return [screenshot_data]
+
+    # _click_fullscreen, _click_normalscreen, _get_rois inherited from BaseFlow
 
     def step_10_close_cerner(self):
         """Close Cerner."""
         self.set_step("STEP_10_CLOSE_CERNER")
-        print("\n[STEP 10] Closing Cerner")
+        logger.info("[STEP 10] Closing Cerner")
 
         close_button = self.wait_for_element(
             config.get_rpa_setting("images.jackson_cerner_close"),
@@ -338,13 +360,13 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on Cerner Close button")
 
         stoppable_sleep(5)
-        print("[STEP 10] Cerner closed")
+        logger.info("[STEP 10] Cerner closed")
         return True
 
     def step_11_vdi_tab(self):
         """Click VDI Desktop Tab."""
         self.set_step("STEP_11_VDI_TAB")
-        print("\n[STEP 11] Clicking VDI Desktop Tab")
+        logger.info("[STEP 11] Clicking VDI Desktop Tab")
 
         vdi_tab = self.wait_for_element(
             config.get_rpa_setting("images.jackson_vdi_tab"),
@@ -358,5 +380,5 @@ class JacksonFlow(BaseFlow):
             raise Exception("Failed to click on VDI Desktop Tab")
 
         stoppable_sleep(2)
-        print("[STEP 11] VDI Desktop Tab clicked")
+        logger.info("[STEP 11] VDI Desktop Tab clicked")
         return True
