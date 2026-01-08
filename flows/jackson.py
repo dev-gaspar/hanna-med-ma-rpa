@@ -364,21 +364,41 @@ class JacksonFlow(BaseFlow):
         return True
 
     def step_11_vdi_tab(self):
-        """Click VDI Desktop Tab."""
+        """Click VDI Desktop Tab with fallback."""
         self.set_step("STEP_11_VDI_TAB")
         logger.info("[STEP 11] Clicking VDI Desktop Tab")
 
+        # Try primary image
         vdi_tab = self.wait_for_element(
-            config.get_rpa_setting("images.jackson_vdi_tab"),
+            config.get_rpa_setting("images.common_vdi_desktop_tab"),
             timeout=config.get_timeout("jackson.vdi_tab"),
             description="VDI Desktop Tab",
         )
+
+        used_fallback = False
+        # Fallback to alternative image
         if not vdi_tab:
-            raise Exception("VDI Desktop Tab not found")
+            logger.warning("[STEP 11] Primary VDI tab not found, trying fallback...")
+            vdi_tab = self.wait_for_element(
+                config.get_rpa_setting("images.common_vdi_desktop_tab_fallback"),
+                timeout=config.get_timeout("jackson.vdi_tab"),
+                description="VDI Desktop Tab (Apps fallback)",
+            )
+            used_fallback = True
+
+        if not vdi_tab:
+            raise Exception("VDI Desktop Tab not found (tried primary and fallback)")
 
         if not self.safe_click(vdi_tab, "VDI Desktop Tab"):
             raise Exception("Failed to click on VDI Desktop Tab")
 
         stoppable_sleep(2)
+
+        # If fallback was used, navigate to lobby URL since we're in wrong view
+        if used_fallback:
+            logger.info("[STEP 11] Fallback used - navigating to lobby URL...")
+            self._navigate_to_lobby()
+            stoppable_sleep(3)
+
         logger.info("[STEP 11] VDI Desktop Tab clicked")
         return True
