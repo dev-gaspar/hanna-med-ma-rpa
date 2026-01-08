@@ -808,21 +808,41 @@ class StewardFlow(BaseFlow):
         return True
 
     def step_19_vdi_tab(self):
-        """Click VDI Desktop Tab."""
+        """Click VDI Desktop Tab with fallback."""
         self.set_step("STEP_19_VDI_TAB")
         logger.info("[STEP 19] Clicking VDI Desktop Tab")
 
+        # Try primary image
         vdi_tab = self.wait_for_element(
-            config.get_rpa_setting("images.steward_vdi_desktop_tab"),
+            config.get_rpa_setting("images.common_vdi_desktop_tab"),
             timeout=config.get_timeout("steward.vdi_tab"),
             description="VDI Desktop Tab",
         )
+
+        used_fallback = False
+        # Fallback to alternative image
         if not vdi_tab:
-            raise Exception("VDI Desktop Tab not found")
+            logger.warning("[STEP 19] Primary VDI tab not found, trying fallback...")
+            vdi_tab = self.wait_for_element(
+                config.get_rpa_setting("images.common_vdi_desktop_tab_fallback"),
+                timeout=config.get_timeout("steward.vdi_tab"),
+                description="VDI Desktop Tab (Apps fallback)",
+            )
+            used_fallback = True
+
+        if not vdi_tab:
+            raise Exception("VDI Desktop Tab not found (tried primary and fallback)")
 
         if not self.safe_click(vdi_tab, "VDI Desktop Tab"):
             raise Exception("Failed to click on VDI Desktop Tab")
 
         stoppable_sleep(2)
+
+        # If fallback was used, navigate to lobby URL since we're in wrong view
+        if used_fallback:
+            logger.info("[STEP 19] Fallback used - navigating to lobby URL...")
+            self._navigate_to_lobby()
+            stoppable_sleep(3)
+
         logger.info("[STEP 19] VDI Desktop Tab clicked")
         return True

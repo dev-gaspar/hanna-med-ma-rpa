@@ -44,6 +44,8 @@
 	"images": {
 		"lobby": "images/{resolution}/common/lobby.png",
 		"ok_modal": "images/{resolution}/common/ok_modal.png",
+		"common_vdi_desktop_tab": "images/{resolution}/common/vdi_desktop_tab.png",
+		"common_vdi_desktop_tab_fallback": "images/{resolution}/common/vdi_desktop_tab_fallback.png",
 		"vdi_icon": "images/{resolution}/baptist/vdi_desktop_icon.png",
 		"edge_icon": "images/{resolution}/baptist/edge_desktop_icon.png",
 		"email_input": "images/{resolution}/baptist/email_input.png",
