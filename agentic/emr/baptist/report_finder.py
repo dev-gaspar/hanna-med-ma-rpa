@@ -32,10 +32,46 @@ FIRST, you must SCAN the tree to see what folders are available:
    - Priority 1: "History and Physical Notes"
    - Priority 2: "ER/ED Notes" or "ED Notes"  
    - Priority 3: "Hospitalist Notes"
-   - Priority 4: "Progress Notes", "Admission Notes"
-   - Priority 5 (LAST RESORT): "Consultation Notes"
+   - Priority 4: "Consultation Notes" (prefer sub-folder matching specialty)
+   - Priority 5 (LAST): "Progress Notes", "Admission Notes"
 
 4. Continue scrolling until you've seen all folders or found Priority 1
+
+=== SPECIALTY SUB-FOLDER SEARCH STRATEGY ===
+
+When entering Priority 4-5 folders (Consultation or Progress Notes):
+1. DBLCLICK to expand the parent folder
+2. SCAN all visible sub-folders for specialty match (e.g., "Podiatry", doctor's specialty)
+3. If specialty sub-folder FOUND → CLICK to select, DBLCLICK to expand, then NAV_DOWN
+4. If specialty sub-folder NOT FOUND:
+   - In Consultation Notes → CLOSE folder, move to Progress Notes
+   - In Progress Notes → Accept any Physician Progress Note (most recent first)
+
+FALLBACK DOCUMENTS (when no specialty found):
+When no specialty-specific content is available, these are GOOD alternatives:
+- "Physician Progress Note" - general but valuable physician documentation
+- "Critical Care Progress Note" - comprehensive physician notes with full clinical assessment
+
+=== CRITICAL NAVIGATION RULES ===
+
+**WITHIN a sub-folder:** nav_down/nav_up with repeat > 1 is OK to browse consecutive documents
+**BETWEEN different sub-folders:** NEVER use nav_down/nav_up to jump - you WILL get lost
+
+TO NAVIGATE TO A DOCUMENT IN A DIFFERENT SUB-FOLDER:
+1. CLICK on the target sub-folder to SELECT it
+2. DBLCLICK to EXPAND it (if collapsed)  
+3. NAV_DOWN to enter the sub-folder's documents
+
+WRONG: Using nav_down repeat=3 to "count" and jump from SubFolder-A to SubFolder-B
+CORRECT: CLICK on SubFolder-B, then DBLCLICK to expand, then NAV_DOWN to browse
+
+IF YOU SEE THE TARGET DOCUMENT IN THE TREE:
+- CLICK directly on that document's parent sub-folder
+- Then NAV_DOWN until you reach the document
+- OR DBLCLICK on the document directly to open it
+
+CONSULTATION NOTES: If no specialty sub-folder exists → move to Progress Notes
+PROGRESS NOTES: First look for specialty sub-folder, then accept Physician Progress Notes
 
 =============================================================================
 PHASE 2: EVALUATE - Identify the highest priority folder visible
@@ -54,14 +90,24 @@ NEVER skip to a lower priority if a higher one exists!
 PHASE 3: NAVIGATE - Open folder and browse documents
 =============================================================================
 
-Once you've identified your target folder:
+FOLDER NAVIGATION RULES:
+- PARENT FOLDERS (Priority 1-5 main folders): Use DBLCLICK to expand/collapse
+- SUB-FOLDERS (specialty folders inside parent): Use CLICK to select, then DBLCLICK to expand
+- DOCUMENTS (inside sub-folders): Use NAV_DOWN to move through documents within that sub-folder
 
-1. CLICK or DBLCLICK on the folder to select/expand it.
-2. STOP AND ASSESS (See "Hierarchical Navigation & Date Logic").
-3. Use nav_down to enter the folder and open the target document.
-4. CHECK the right pane for valid clinical content.
-5. If document is bad → nav_down to next.
-6. If folder exhausted → CLOSE it with dblclick, go to next priority.
+STEP BY STEP:
+1. DBLCLICK on parent folder to EXPAND it (reveals sub-folders)
+2. CLICK on the desired sub-folder to SELECT it (matching specialty if available)
+3. DBLCLICK on selected sub-folder to EXPAND it (reveals documents)
+4. NAV_DOWN to select documents inside the sub-folder
+5. CHECK the right pane:
+   - Valid clinical content visible → status="finished" ✓
+   - "23 Hour..." folder → IGNORE IT completely, don't enter it
+   - Sub-folder exhausted → DBLCLICK to CLOSE, try next sub-folder
+6. If parent folder exhausted → DBLCLICK to CLOSE, go to next priority
+
+CRITICAL: If you want to reach a document in a DIFFERENT sub-folder, DON'T use nav_down
+to jump across sub-folders. Instead, CLICK on that sub-folder first, then navigate within it.
 
 =============================================================================
 CRITICAL: HIERARCHICAL NAVIGATION & DATE LOGIC
@@ -169,16 +215,19 @@ Return status="error" when:
 OUTPUT FORMAT
 =============================================================================
 
-{
+{{
   "status": "running" | "finished" | "error",
   "action": "scroll_down" | "scroll_up" | "click" | "dblclick" | "nav_down" | "nav_up" | "wait",
   "target_id": <element_id for click/dblclick, null otherwise>,
   "repeat": <1-5 for scroll/nav actions>,
   "reasoning": "Phase X: What I see → What I'm doing → Why"
-}"""
+}}"""
 
 
-USER_PROMPT = """=== CURRENT STATUS ===
+USER_PROMPT = """=== DOCTOR'S SPECIALTY ===
+{doctor_specialty}
+
+=== CURRENT STATUS ===
 Step: {current_step}/30
 Steps remaining: {steps_remaining}
 
@@ -244,6 +293,10 @@ class ReportFinderAgent(BaseAgent):
     max_steps = 30
     temperature = 0.3
 
+    def __init__(self, doctor_specialty: str = None):
+        super().__init__()
+        self.doctor_specialty = doctor_specialty
+
     def get_output_schema(self) -> Type[BaseModel]:
         return ReportFinderResult
 
@@ -262,6 +315,7 @@ class ReportFinderAgent(BaseAgent):
         loop_warning = self._detect_loop_from_text(history)
 
         return USER_PROMPT.format(
+            doctor_specialty=self.doctor_specialty,
             current_step=current_step,
             steps_remaining=steps_remaining,
             elements_text=elements_text or "No elements detected",

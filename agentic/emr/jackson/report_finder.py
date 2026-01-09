@@ -68,25 +68,73 @@ Search folders in this STRICT order. You MUST exhaust each priority before movin
 | 1        | "History and Physical Notes"       | Any H&P (SKIP "23 Hour..." docs)               |
 | 2        | "ER/ED Notes" or "ED Notes"        | "ED Notes Physician" specifically              |
 | 3        | "Hospitalist Notes"                | Any hospitalist note                           |
-| 4        | "Progress Notes", "Admission Notes"| "Physician Progress Note" FIRST, skip Nurse    |
-| 5 (LAST) | "Consultation Notes"               | ONLY if priorities 1-4 have NO docs            |
+| 4        | "Consultation Notes"               | Prefer sub-folder matching doctor's specialty  |
+| 5 (LAST) | "Progress Notes", "Admission Notes"| "Physician Progress Note" FIRST, skip Nurse    |
+
+CONSULTATION NOTES PRIORITY: Within "Consultation Notes" folder:
+- PREFER: Sub-folder matching the requesting doctor's specialty
+- If specialty folder exists (e.g., "Podiatry Cons"), explore it FIRST
+- If NO specialty sub-folder found → CLOSE Consultation Notes and move to Progress Notes
 
 PROGRESS NOTES PRIORITY: Within "Progress Notes" folder:
-- PREFER: "Physician Progress Note" - written by doctors, more comprehensive
-- SKIP: "Nurse Progress Note" - less clinical detail, only accept if no Physician notes exist
+- FIRST: Look for sub-folder matching doctor's specialty (e.g., "Podiatry", "Critical Care")
+- If specialty sub-folder exists → explore it for relevant notes
+- If NO specialty sub-folder → accept "Physician Progress Note" (skip Nurse notes)
+- ONLY accept generic notes if no specialty-specific content is available
 
-CRITICAL: Consultation Notes are the LAST RESORT. If you find a Consult Note while 
-searching Priority 1-4 folders, SKIP IT and continue searching other priorities first.
+=== SPECIALTY SUB-FOLDER SEARCH STRATEGY ===
+
+When entering Priority 4-5 folders (Consultation or Progress Notes):
+1. DBLCLICK to expand the parent folder
+2. SCAN all visible sub-folders for specialty match (e.g., "Podiatry", doctor's specialty)
+3. If specialty sub-folder FOUND → CLICK to select, then DBLCLICK to expand, then NAV_DOWN
+4. If specialty sub-folder NOT FOUND:
+   - In Consultation Notes → CLOSE folder, move to Progress Notes
+   - In Progress Notes → Accept any Physician Progress Note (most recent first)
+
+FALLBACK DOCUMENTS (when no specialty found):
+When no specialty-specific content is available, these are GOOD alternatives:
+- "Physician Progress Note" - general but valuable physician documentation
+- "Critical Care Progress Note" - comprehensive physician notes with full clinical assessment
+
+=== CRITICAL NAVIGATION RULES ===
+
+**WITHIN a sub-folder:** nav_down/nav_up with repeat > 1 is OK to browse consecutive documents
+**BETWEEN different sub-folders:** NEVER use nav_down/nav_up to jump - you WILL get lost
+
+TO NAVIGATE TO A DOCUMENT IN A DIFFERENT SUB-FOLDER:
+1. CLICK on the target sub-folder to SELECT it
+2. DBLCLICK to EXPAND it (if collapsed)  
+3. NAV_DOWN to enter the sub-folder's documents
+
+WRONG: Using nav_down repeat=3 to "count" and jump from SubFolder-A to SubFolder-B
+CORRECT: CLICK on SubFolder-B, then DBLCLICK to expand, then NAV_DOWN to browse
+
+IF YOU SEE THE TARGET DOCUMENT IN THE TREE:
+- CLICK directly on that document's parent sub-folder
+- Then NAV_DOWN until you reach the document
+- OR DBLCLICK on the document directly to open it
 
 === WORKFLOW FOR EACH PRIORITY ===
 
-1. CLICK on the target folder to select it
-2. Use nav_down to enter the folder and open the first document
-3. CHECK the right pane:
-   - Valid content visible (and matches current priority) → status="finished" ✓
-   - "23 Hour..." or Consultation Note → nav_down (use repeat to skip faster)
-   - No more documents in folder → dblclick folder to CLOSE, go to next priority
-4. If stuck in same position after 2 nav actions → folder is exhausted, close it
+FOLDER NAVIGATION RULES:
+- PARENT FOLDERS (Priority 1-5 main folders): Use DBLCLICK to expand/collapse
+- SUB-FOLDERS (specialty folders inside parent): Use CLICK to select, then DBLCLICK to expand
+- DOCUMENTS (inside sub-folders): Use NAV_DOWN to move through documents within that sub-folder
+
+STEP BY STEP:
+1. DBLCLICK on parent folder to EXPAND it (reveals sub-folders)
+2. CLICK on the desired sub-folder to SELECT it (matching specialty if available)
+3. DBLCLICK on selected sub-folder to EXPAND it (reveals documents)
+4. NAV_DOWN to select documents inside the sub-folder
+5. CHECK the right pane:
+   - Valid clinical content visible → status="finished" ✓
+   - "23 Hour..." folder → IGNORE IT completely, don't enter it
+   - Sub-folder exhausted → DBLCLICK to CLOSE, try next sub-folder
+6. If parent folder exhausted → DBLCLICK to CLOSE, go to next priority
+
+CRITICAL: If you want to reach a document in a DIFFERENT sub-folder, DON'T use nav_down
+to jump across sub-folders. Instead, CLICK on that sub-folder first, then navigate within it.
 
 === DOCUMENTS TO ALWAYS SKIP (unless all priorities exhausted) ===
 
@@ -196,6 +244,9 @@ EXAMPLE OUTPUT WITH REPEAT:
 
 USER_PROMPT = """Analyze this screenshot of the Jackson EMR Notes tree.
 
+=== DOCTOR'S SPECIALTY ===
+{doctor_specialty}
+
 === CURRENT STATUS ===
 Step: {current_step}/30
 Steps remaining: {steps_remaining}
@@ -283,6 +334,10 @@ class ReportFinderAgent(BaseAgent):
     max_steps = 30
     temperature = 0.2
 
+    def __init__(self, doctor_specialty: str = None):
+        super().__init__()
+        self.doctor_specialty = doctor_specialty
+
     def get_output_schema(self) -> Type[BaseModel]:
         return ReportFinderResult
 
@@ -299,6 +354,7 @@ class ReportFinderAgent(BaseAgent):
         **kwargs,
     ) -> str:
         return USER_PROMPT.format(
+            doctor_specialty=self.doctor_specialty,
             elements_text=elements_text,
             history=history or "(No previous actions)",
             current_step=current_step,

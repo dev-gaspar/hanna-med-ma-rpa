@@ -38,6 +38,7 @@ class StartSummaryRequest(StartRPARequest):
     """Request model for starting a patient summary flow."""
 
     patient_name: str  # Name of the patient to find
+    doctor_specialty: Optional[str] = None  # Doctor's specialty to guide report search
 
 
 class StartRPAResponse(BaseModel):
@@ -111,4 +112,5 @@ class BatchSummaryRequest(BaseModel):
     doctor_name: Optional[str] = None
     hospital_type: HospitalType  # JACKSON or BAPTIST (extensible)
     patient_names: List[str]  # Array of patient names to search
+    doctor_specialty: Optional[str] = None  # Doctor's specialty to guide report search
     credentials: Optional[List[CredentialItem]] = None

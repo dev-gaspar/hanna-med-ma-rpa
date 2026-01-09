@@ -133,8 +133,8 @@ def scroll_tree_up(clicks: int = 3) -> str:
         pyautogui.click(center[0], center[1])
         pyautogui.sleep(0.3)
 
-        # Scroll with aggressive values (100 per click, similar to baptist.py which uses 300)
-        scroll_amount = clicks * 100
+        # Scroll UP needs more aggressive values in VDI (200 per click)
+        scroll_amount = clicks * 200
         pyautogui.scroll(scroll_amount)
 
         logger.info(
@@ -167,8 +167,8 @@ def scroll_tree_down(clicks: int = 3) -> str:
         pyautogui.click(center[0], center[1])
         pyautogui.sleep(0.3)
 
-        # Scroll with aggressive values (100 per click, similar to baptist.py which uses 300)
-        scroll_amount = clicks * 100
+        # Scroll DOWN with aggressive values (200 per click to match scroll_up)
+        scroll_amount = clicks * 200
         pyautogui.scroll(-scroll_amount)
 
         logger.info(

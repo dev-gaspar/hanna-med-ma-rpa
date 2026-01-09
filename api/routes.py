@@ -201,6 +201,7 @@ async def start_jackson_summary_flow(
         body.doctor_name,
         body.credentials,
         patient_name=body.patient_name,
+        doctor_specialty=body.doctor_specialty,
     )
 
     return {
@@ -245,6 +246,7 @@ async def start_baptist_summary_flow(
         body.doctor_name,
         body.credentials,
         patient_name=body.patient_name,
+        doctor_specialty=body.doctor_specialty,
     )
 
     return {
@@ -406,6 +408,7 @@ async def start_batch_summary_flow(
         credentials,
         patient_names=body.patient_names,
         hospital_type=hospital,
+        doctor_specialty=body.doctor_specialty,
     )
 
     logger.info(f"[BATCH-SUMMARY] Background task queued, returning response")
