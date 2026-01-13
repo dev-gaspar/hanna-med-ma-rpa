@@ -8,6 +8,7 @@ from .baptist_summary import BaptistSummaryFlow
 from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .steward import StewardFlow
+from .steward_summary import StewardSummaryFlow
 
 # Batch summary flows
 from .base_batch_summary import BaseBatchSummaryFlow
@@ -26,6 +27,7 @@ FLOW_REGISTRY = {
     "jackson": JacksonFlow,
     "jackson_summary": JacksonSummaryFlow,
     "steward": StewardFlow,
+    "steward_summary": StewardSummaryFlow,
     # Batch summaries
     "jackson_batch_summary": JacksonBatchSummaryFlow,
     "baptist_batch_summary": BaptistBatchSummaryFlow,
@@ -60,6 +62,7 @@ __all__ = [
     "JacksonFlow",
     "JacksonSummaryFlow",
     "StewardFlow",
+    "StewardSummaryFlow",
     "BaseBatchSummaryFlow",
     "JacksonBatchSummaryFlow",
     "BaptistBatchSummaryFlow",

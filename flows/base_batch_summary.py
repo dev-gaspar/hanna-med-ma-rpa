@@ -195,6 +195,7 @@ class BaseBatchSummaryFlow(BaseFlow, ABC):
             "instance": self.instance,
             "trigger_type": self.trigger_type,
             "doctor_name": self.doctor_name,
+            "doctor_specialty": getattr(self, "doctor_specialty", None),
             "hospital": self.hospital_type,
             "patients": result.get("patients", []),
             "total": result.get("total", 0),

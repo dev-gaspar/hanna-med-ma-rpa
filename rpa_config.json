@@ -120,7 +120,22 @@
 		"steward_print_btn": "images/{resolution}/steward/print_btn.png",
 		"steward_sign_list": "images/{resolution}/steward/sign_list_popup.png",
 		"steward_sign_list_obstacle": "images/{resolution}/steward/sign_list_obstacle.png",
-		"steward_leave_now_btn": "images/{resolution}/steward/leave_now_btn.png"
+		"steward_leave_now_btn": "images/{resolution}/steward/leave_now_btn.png",
+		"steward_orders_btn": "images/{resolution}/steward/orders_btn.png",
+		"steward_orders_view": "images/{resolution}/steward/orders_view.png",
+		"steward_chart": "images/{resolution}/steward/step1_chart.png",
+		"steward_provider_notes": "images/{resolution}/steward/step2_provider_notes.png",
+		"steward_provider_notes_collapsed": "images/{resolution}/steward/step3_provider_notes_collapsed.png",
+		"steward_filter_btn": "images/{resolution}/steward/step4_filter_btn.png",
+		"steward_select_all_btn": "images/{resolution}/steward/step5_select_all_btn.png",
+		"steward_general_filter_btn": "images/{resolution}/steward/step6_general_filter_btn.png",
+		"steward_apply_filter_btn": "images/{resolution}/steward/step7_apply_filter_btn.png",
+		"steward_first_document_btn": "images/{resolution}/steward/step8_first_document_btn.png",
+		"steward_print_report_btn": "images/{resolution}/steward/step9_print_report_btn.png",
+		"steward_ok_preview_btn": "images/{resolution}/steward/step10_ok_preview_btn.png",
+		"steward_tab_document_btn": "images/{resolution}/steward/step11_tab_document_btn.png",
+		"steward_close_tab_document_btn": "images/{resolution}/steward/step12_close_tab_document_btn.png",
+		"steward_close_modal_document_detail": "images/{resolution}/steward/step13_close_modal_document_detail.png"
 	},
 	"timeouts": {
 		"default": 60,
@@ -233,6 +248,32 @@
 					"report_content"
 				]
 			}
+		},
+		"steward": {
+			"1024x768": {
+				"patient_finder": [
+					"patient_list"
+				],
+				"reason_finder": [
+					"orders_list"
+				],
+				"report_finder": [
+					"document_list",
+					"document_content"
+				]
+			},
+			"1366x768": {
+				"patient_finder": [
+					"patient_list"
+				],
+				"reason_finder": [
+					"orders_list"
+				],
+				"report_finder": [
+					"document_list",
+					"document_content"
+				]
+			}
 		}
 	},
 	"roi_regions": {
@@ -329,6 +370,60 @@
 					"y": 256,
 					"w": 587,
 					"h": 359
+				}
+			}
+		},
+		"steward": {
+			"1024x768": {
+				"patient_list": {
+					"x": 6,
+					"y": 315,
+					"w": 767,
+					"h": 389
+				},
+				"orders_list": {
+					"x": 2,
+					"y": 371,
+					"w": 762,
+					"h": 354
+				},
+				"document_list": {
+					"x": 44,
+					"y": 320,
+					"w": 231,
+					"h": 317
+				},
+				"document_content": {
+					"x": 277,
+					"y": 366,
+					"w": 700,
+					"h": 330
+				}
+			},
+			"1366x768": {
+				"patient_list": {
+					"x": 6,
+					"y": 315,
+					"w": 767,
+					"h": 389
+				},
+				"orders_list": {
+					"x": 2,
+					"y": 371,
+					"w": 762,
+					"h": 354
+				},
+				"document_list": {
+					"x": 44,
+					"y": 320,
+					"w": 231,
+					"h": 317
+				},
+				"document_content": {
+					"x": 277,
+					"y": 366,
+					"w": 700,
+					"h": 330
 				}
 			}
 		}

@@ -499,6 +499,7 @@ class BaptistSummaryFlow(BaseFlow):
             "instance": self.instance,
             "trigger_type": self.trigger_type,
             "doctor_name": self.doctor_name,
+            "doctor_specialty": self.doctor_specialty,
         }
         # Send to dedicated summary webhook using base method
         response = self._send_to_summary_webhook_n8n(payload)
