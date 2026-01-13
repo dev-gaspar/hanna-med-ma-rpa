@@ -77,10 +77,11 @@ def click_element(element_id: int, elements: list, action: str = "click") -> str
 def scroll_down(clicks: int = 3, roi_name: str = None) -> str:
     """
     Scroll DOWN in the current view.
-    Moves cursor to center of ROI WITHOUT clicking, then scrolls.
+    Moves cursor to center of ROI WITHOUT clicking, then performs multiple scrolls.
+    Each scroll is a fixed amount (400), clicks determines how many scrolls to perform.
 
     Args:
-        clicks: Number of scroll clicks (1-10)
+        clicks: Number of individual scrolls to perform (1-10)
         roi_name: Optional ROI name to get center position from config
     """
     clicks = max(1, min(10, clicks))
@@ -100,12 +101,15 @@ def scroll_down(clicks: int = 3, roi_name: str = None) -> str:
         pyautogui.moveTo(center[0], center[1])
         pyautogui.sleep(0.2)
 
-        # Scroll DOWN (negative value) - 1800 per click for fast scrolling
-        scroll_amount = clicks * 1800
-        pyautogui.scroll(-scroll_amount)
+        # Perform multiple individual scrolls (fixed 400 per scroll)
+        SCROLL_AMOUNT = 400
+        for _ in range(clicks):
+            pyautogui.scroll(-SCROLL_AMOUNT)
+            pyautogui.sleep(0.05)
 
+        total = clicks * SCROLL_AMOUNT
         logger.info(
-            f"[TOOL] scroll_down: {clicks} clicks ({scroll_amount}) at {center}"
+            f"[TOOL] scroll_down: {clicks}x scrolls (total: {total}) at {center}"
         )
         return "success"
     except Exception as e:
@@ -116,10 +120,11 @@ def scroll_down(clicks: int = 3, roi_name: str = None) -> str:
 def scroll_up(clicks: int = 3, roi_name: str = None) -> str:
     """
     Scroll UP in the current view.
-    Moves cursor to center of ROI WITHOUT clicking, then scrolls.
+    Moves cursor to center of ROI WITHOUT clicking, then performs multiple scrolls.
+    Each scroll is a fixed amount (400), clicks determines how many scrolls to perform.
 
     Args:
-        clicks: Number of scroll clicks (1-10)
+        clicks: Number of individual scrolls to perform (1-10)
         roi_name: Optional ROI name to get center position from config
     """
     clicks = max(1, min(10, clicks))
@@ -139,11 +144,14 @@ def scroll_up(clicks: int = 3, roi_name: str = None) -> str:
         pyautogui.moveTo(center[0], center[1])
         pyautogui.sleep(0.2)
 
-        # Scroll UP (positive value) - 1800 per click for fast scrolling
-        scroll_amount = clicks * 1800
-        pyautogui.scroll(scroll_amount)
+        # Perform multiple individual scrolls (fixed 400 per scroll)
+        SCROLL_AMOUNT = 400
+        for _ in range(clicks):
+            pyautogui.scroll(SCROLL_AMOUNT)
+            pyautogui.sleep(0.05)
 
-        logger.info(f"[TOOL] scroll_up: {clicks} clicks ({scroll_amount}) at {center}")
+        total = clicks * SCROLL_AMOUNT
+        logger.info(f"[TOOL] scroll_up: {clicks}x scrolls (total: {total}) at {center}")
         return "success"
     except Exception as e:
         logger.error(f"[TOOL] scroll_up error: {e}")
