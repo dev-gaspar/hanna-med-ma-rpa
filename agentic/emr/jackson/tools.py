@@ -115,12 +115,13 @@ def click_element(element_id: int, elements: list, action: str = "click") -> str
 def scroll_tree_up(clicks: int = 3) -> str:
     """
     Scroll UP in the notes tree to see folders above the current view.
-    First clicks on the tree to ensure it has focus before scrolling.
+    Moves cursor to center of ROI WITHOUT clicking, then performs multiple scrolls.
+    Each scroll is a fixed amount (400), clicks determines how many scrolls to perform.
 
     Args:
-        clicks: Number of scroll clicks (1-5)
+        clicks: Number of individual scrolls to perform (1-10)
     """
-    clicks = max(1, min(5, clicks))
+    clicks = max(1, min(10, clicks))
 
     try:
         center = config.get_roi_center("jackson", "notes_tree")
@@ -129,16 +130,19 @@ def scroll_tree_up(clicks: int = 3) -> str:
             screen_w, screen_h = pyautogui.size()
             center = (int(screen_w * 0.30), int(screen_h * 0.50))
 
-        # Click first to give focus to the tree (required for scroll to work)
-        pyautogui.click(center[0], center[1])
-        pyautogui.sleep(0.3)
+        # Move cursor to center WITHOUT clicking (avoid unintended clicks)
+        pyautogui.moveTo(center[0], center[1])
+        pyautogui.sleep(0.2)
 
-        # Scroll UP needs more aggressive values in VDI (200 per click)
-        scroll_amount = clicks * 200
-        pyautogui.scroll(scroll_amount)
+        # Perform multiple individual scrolls (fixed 400 per scroll)
+        SCROLL_AMOUNT = 400
+        for _ in range(clicks):
+            pyautogui.scroll(SCROLL_AMOUNT)
+            pyautogui.sleep(0.05)
 
+        total = clicks * SCROLL_AMOUNT
         logger.info(
-            f"[TOOL] scroll_tree_up: {clicks} clicks ({scroll_amount}) at {center}"
+            f"[TOOL] scroll_tree_up: {clicks}x scrolls (total: {total}) at {center}"
         )
         return "success"
     except Exception as e:
@@ -149,12 +153,13 @@ def scroll_tree_up(clicks: int = 3) -> str:
 def scroll_tree_down(clicks: int = 3) -> str:
     """
     Scroll DOWN in the notes tree to see folders below the current view.
-    First clicks on the tree to ensure it has focus before scrolling.
+    Moves cursor to center of ROI WITHOUT clicking, then performs multiple scrolls.
+    Each scroll is a fixed amount (400), clicks determines how many scrolls to perform.
 
     Args:
-        clicks: Number of scroll clicks (1-5)
+        clicks: Number of individual scrolls to perform (1-10)
     """
-    clicks = max(1, min(5, clicks))
+    clicks = max(1, min(10, clicks))
 
     try:
         center = config.get_roi_center("jackson", "notes_tree")
@@ -163,16 +168,19 @@ def scroll_tree_down(clicks: int = 3) -> str:
             screen_w, screen_h = pyautogui.size()
             center = (int(screen_w * 0.30), int(screen_h * 0.50))
 
-        # Click first to give focus to the tree (required for scroll to work)
-        pyautogui.click(center[0], center[1])
-        pyautogui.sleep(0.3)
+        # Move cursor to center WITHOUT clicking (avoid unintended clicks)
+        pyautogui.moveTo(center[0], center[1])
+        pyautogui.sleep(0.2)
 
-        # Scroll DOWN with aggressive values (200 per click to match scroll_up)
-        scroll_amount = clicks * 200
-        pyautogui.scroll(-scroll_amount)
+        # Perform multiple individual scrolls (fixed 400 per scroll)
+        SCROLL_AMOUNT = 400
+        for _ in range(clicks):
+            pyautogui.scroll(-SCROLL_AMOUNT)
+            pyautogui.sleep(0.05)
 
+        total = clicks * SCROLL_AMOUNT
         logger.info(
-            f"[TOOL] scroll_tree_down: {clicks} clicks ({scroll_amount}) at {center}"
+            f"[TOOL] scroll_tree_down: {clicks}x scrolls (total: {total}) at {center}"
         )
         return "success"
     except Exception as e:
