@@ -1,51 +1,51 @@
 # Hanna-Med RPA Agent
 
-Agente de automatización robótica (RPA) para la obtención de credenciales médicas en sistemas EMR de hospitales de Florida.
+Robotic Process Automation (RPA) agent for obtaining medical credentials in EMR systems of Florida hospitals.
 
-## Descripción
+## Description
 
-Este RPA automatiza el proceso de login, navegación y captura de información en los portales de credenciales de tres hospitales:
+This RPA automates the login, navigation, and information capture process in credential portals of three hospitals:
 
 - **Baptist Health South Florida**
 - **Jackson Health System**
 - **Steward Health Care**
 
-## Requisitos
+## Requirements
 
 - Python 3.10+
-- Acceso VDI a los sistemas hospitalarios
-- Credenciales de AWS S3 (para almacenamiento de capturas)
+- VDI access to hospital systems
+- AWS S3 credentials (for screenshot storage)
 
-## Instalación
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Uso
+## Usage
 
-El agente se ejecuta como un servicio FastAPI que recibe webhooks desde n8n:
+The agent runs as a FastAPI service that receives webhooks from n8n:
 
 ```bash
 python -m uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
-También incluye una interfaz gráfica (GUI) para monitoreo:
+It also includes a graphical user interface (GUI) for monitoring:
 
 ```bash
 python gui.py
 ```
 
-## Estructura
+## Structure
 
 ```
-├── api/          # Endpoints FastAPI
-├── core/         # Motor RPA base
-├── flows/        # Flujos por hospital (baptist, jackson, steward)
-├── services/     # Servicios auxiliares
-└── images/       # Imágenes de referencia para detección
+├── api/          # FastAPI endpoints
+├── core/         # Base RPA engine
+├── flows/        # Hospital-specific flows (baptist, jackson, steward)
+├── services/     # Auxiliary services
+└── images/       # Reference images for detection
 ```
 
-## Configuración
+## Configuration
 
-Las configuraciones se manejan en `rpa_config.json` y variables de entorno en `.env`.
+Settings are managed in `rpa_config.json` and environment variables in `.env`.

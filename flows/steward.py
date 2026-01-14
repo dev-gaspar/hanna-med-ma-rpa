@@ -55,7 +55,7 @@ class StewardFlow(BaseFlow):
         self.step_5_open_session()
         self.step_6_navigate_menu_5()
         self.step_7_navigate_menu_6()
-        self.step_8_click_lista()
+        self.step_8_click_list()
         self.step_9_print_pdf()
         pdf_data = self.step_10_upload_pdf()
         self.step_11_close_pdf_tab()
@@ -275,21 +275,21 @@ class StewardFlow(BaseFlow):
 
         # Check if a session is already open (obstacle)
         if self._check_element_exists(
-            config.get_rpa_setting("images.steward_status_sesion_abierta")
+            config.get_rpa_setting("images.steward_status_session_open")
         ):
             logger.info("[STEP 5] Session already open - resetting...")
             self._reset_existing_session()
 
         # Now proceed with normal session opening
-        sesion_meditech = self.wait_for_element(
-            config.get_rpa_setting("images.steward_sesion_meditech"),
+        session_meditech = self.wait_for_element(
+            config.get_rpa_setting("images.steward_session_meditech"),
             timeout=config.get_timeout("steward.session"),
             description="Meditech Session",
         )
-        if not sesion_meditech:
+        if not session_meditech:
             raise Exception("Meditech Session button not found")
 
-        if not self.safe_click(sesion_meditech, "Meditech Session"):
+        if not self.safe_click(session_meditech, "Meditech Session"):
             raise Exception("Failed to click on Meditech Session")
 
         stoppable_sleep(5)
@@ -312,7 +312,7 @@ class StewardFlow(BaseFlow):
         """Reset an already-open Meditech session."""
         # Click Reset button
         reset_btn = self.wait_for_element(
-            config.get_rpa_setting("images.steward_reset_sesion"),
+            config.get_rpa_setting("images.steward_reset_session"),
             timeout=10,
             description="Reset Session Button",
         )
@@ -326,7 +326,7 @@ class StewardFlow(BaseFlow):
 
         # Click Terminate button in the modal
         terminate_btn = self.wait_for_element(
-            config.get_rpa_setting("images.steward_terminate_sesion"),
+            config.get_rpa_setting("images.steward_terminate_session"),
             timeout=10,
             description="Terminate Session Button",
         )
@@ -475,24 +475,24 @@ class StewardFlow(BaseFlow):
         logger.info("[STEP 7] Menu navigation (step 6) completed")
         return True
 
-    def step_8_click_lista(self):
-        """Click on the lista."""
-        self.set_step("STEP_8_LISTA")
-        logger.info("[STEP 8] Clicking on lista")
+    def step_8_click_list(self):
+        """Click on the list."""
+        self.set_step("STEP_8_LIST")
+        logger.info("[STEP 8] Clicking on list")
 
-        lista = self.wait_for_element(
-            config.get_rpa_setting("images.steward_lista"),
-            timeout=config.get_timeout("steward.lista"),
-            description="Lista",
+        patient_list = self.wait_for_element(
+            config.get_rpa_setting("images.steward_list"),
+            timeout=config.get_timeout("steward.list"),
+            description="Patient List",
         )
-        if not lista:
-            raise Exception("Lista not found")
+        if not patient_list:
+            raise Exception("Patient List not found")
 
-        if not self.safe_click(lista, "Lista"):
-            raise Exception("Failed to click on Lista")
+        if not self.safe_click(patient_list, "Patient List"):
+            raise Exception("Failed to click on Patient List")
 
         stoppable_sleep(2)
-        logger.info("[STEP 8] Lista clicked")
+        logger.info("[STEP 8] Patient List clicked")
         return True
 
     def step_9_print_pdf(self):

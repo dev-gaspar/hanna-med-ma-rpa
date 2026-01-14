@@ -26,7 +26,7 @@ RequestExecutionLevel user
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
-!insertmacro MUI_LANGUAGE "Spanish"
+!insertmacro MUI_LANGUAGE "English"
 
 ; Installer sections
 Section "Install"
@@ -69,7 +69,7 @@ Section "Install"
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "NoRepair" 1
     
     ; Success message
-    MessageBox MB_OK "¡${DISPLAYNAME} se ha instalado correctamente!$\n$\nPuede iniciar la aplicación desde el acceso directo en el escritorio o desde el menú inicio." /SD IDOK
+    MessageBox MB_OK "${DISPLAYNAME} has been installed successfully!$\n$\nYou can start the application from the desktop shortcut or the start menu." /SD IDOK
 SectionEnd
 
 ; Uninstaller section
@@ -89,7 +89,7 @@ Section "Uninstall"
     RMDir "$SMPROGRAMS\${DISPLAYNAME}"
     
     ; Ask user if they want to keep configuration
-    MessageBox MB_YESNO "¿Desea eliminar también la configuración y los logs?$\n$\n(Si planea reinstalar, puede mantener la configuración)" /SD IDNO IDYES delete_config IDNO keep_config
+    MessageBox MB_YESNO "Do you also want to delete configuration and logs?$\n$\n(If you plan to reinstall, you may want to keep the configuration)" /SD IDNO IDYES delete_config IDNO keep_config
     
     delete_config:
         RMDir /r "$INSTDIR\.cloudflared"
@@ -99,7 +99,7 @@ Section "Uninstall"
     
     keep_config:
         ; Keep config files
-        MessageBox MB_OK "La configuración se ha mantenido en:$\n$INSTDIR" /SD IDOK
+        MessageBox MB_OK "Configuration has been kept at:$\n$INSTDIR" /SD IDOK
     
     done_config:
     
@@ -110,5 +110,5 @@ Section "Uninstall"
     ; Remove from registry
     DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
     
-    MessageBox MB_OK "${DISPLAYNAME} se ha desinstalado correctamente." /SD IDOK
+    MessageBox MB_OK "${DISPLAYNAME} has been uninstalled successfully." /SD IDOK
 SectionEnd

@@ -60,9 +60,9 @@ jobs:
           body: |
             ## Hanna-Med MA RPA ${{ steps.version.outputs.VERSION }}
 
-            Instalador automático generado desde el commit `${{ github.sha }}`
+            Automatic installer generated from commit `${{ github.sha }}`
 
-            **Cambios:** ${{ github.event.head_commit.message }}
+            **Changes:** ${{ github.event.head_commit.message }}
           files: installer/HannaMed-RPA-Setup.exe
           draft: false
           prerelease: false

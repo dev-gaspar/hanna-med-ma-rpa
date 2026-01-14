@@ -20,16 +20,16 @@ a = Analysis(
     ['gui.py', 'app.py'],  # Include app.py in analysis for proper import
     pathex=[],
     binaries=[
-        ('bin/cloudflared.exe', 'bin'),  # Incluir cloudflared
+        ('bin/cloudflared.exe', 'bin'),  # Include cloudflared
     ],
     datas=[
         ('config.py', '.'),
         ('logger.py', '.'),
         ('config_manager.py', '.'),
         ('tunnel_manager.py', '.'),
-        ('.env', '.'),  # Archivo de variables de entorno
-        ('rpa_config.json', '.'),  # Configuración centralizada
-        ('images', 'images'),  # Todas las imágenes para PyAutoGUI
+        ('.env', '.'),  # Environment variables file
+        ('rpa_config.json', '.'),  # Centralized configuration
+        ('images', 'images'),  # All images for PyAutoGUI
         # New modules
         ('core', 'core'),
         ('flows', 'flows'),
@@ -194,7 +194,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Sin ventana de consola
+    console=False,  # No console window
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
