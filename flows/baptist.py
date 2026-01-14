@@ -598,5 +598,6 @@ class BaptistFlow(BaseFlow):
     def step_15_return_to_start(self):
         """Confirm return to starting point."""
         self.set_step("STEP_15_RETURN")
+        stoppable_sleep(10)
         logger.info("[STEP 15] Back at VDI Desktop")
         return True
