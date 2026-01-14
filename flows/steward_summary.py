@@ -175,7 +175,9 @@ class StewardSummaryFlow(BaseFlow):
                 f"{self.copied_content}"
             )
 
-        logger.info(f"[STEWARD SUMMARY] Phase 3 complete - {len(self.copied_content or '')} chars")
+        logger.info(
+            f"[STEWARD SUMMARY] Phase 3 complete - {len(self.copied_content or '')} chars"
+        )
 
         # =====================================================================
         # PHASE 4: RPA - Cleanup and return to lobby
@@ -333,7 +335,9 @@ class StewardSummaryFlow(BaseFlow):
         if not location:
             raise Exception("Document tab not found - content may not have loaded")
 
-        logger.info("[PHASE 3] Document tab visible - waiting for content to fully load...")
+        logger.info(
+            "[PHASE 3] Document tab visible - waiting for content to fully load..."
+        )
         stoppable_sleep(3)
 
         # === Step 4: Click Center + Ctrl+A + Ctrl+C to Copy ===
@@ -376,7 +380,9 @@ class StewardSummaryFlow(BaseFlow):
             pyautogui.rightClick(center.x, center.y)
             stoppable_sleep(1)
         else:
-            logger.warning("[PHASE 3] Could not find tab for right-click, trying center")
+            logger.warning(
+                "[PHASE 3] Could not find tab for right-click, trying center"
+            )
             pyautogui.rightClick(screen_w // 2, 50)
             stoppable_sleep(1)
 
@@ -396,10 +402,15 @@ class StewardSummaryFlow(BaseFlow):
             stoppable_sleep(1)
 
         # === Step 7: Click Close Modal Document Detail ===
-        close_modal_btn = config.get_rpa_setting("images.steward_close_modal_document_detail")
+        close_modal_btn = config.get_rpa_setting(
+            "images.steward_close_modal_document_detail"
+        )
         logger.info("[PHASE 3] Clicking close modal button...")
         location = self.wait_for_element(
-            close_modal_btn, timeout=10, confidence=0.8, description="Close modal button"
+            close_modal_btn,
+            timeout=10,
+            confidence=0.8,
+            description="Close modal button",
         )
         if location:
             self.safe_click(location, "Close modal button")
@@ -432,7 +443,7 @@ class StewardSummaryFlow(BaseFlow):
         """
         Cleanup Meditech session and return to lobby.
         Uses Steward flow steps 15-19 exactly as in steward.py:
-        - step_15_close_meditech (internally does 2 clicks)
+        - step_15_close_meditech (2 clicks + verification loop)
         - step_16_tab_logged_out
         - step_17_close_tab_final
         - step_18_url
@@ -440,7 +451,7 @@ class StewardSummaryFlow(BaseFlow):
         """
         logger.info("[STEWARD SUMMARY] Cleaning up and returning to lobby...")
         try:
-            # Close Meditech (step_15 internally does 2 clicks)
+            # Close Meditech (step_15 handles multiple clicks automatically)
             self._steward_flow.step_15_close_meditech()
 
             # Right click on logged out tab
@@ -465,24 +476,12 @@ class StewardSummaryFlow(BaseFlow):
     def _cleanup_with_patient_detail_open(self):
         """
         Cleanup when patient chart/Orders detail is open.
-        Needs 3 clicks on close_meditech because:
-        - 1st click: Close patient detail
-        - 2nd click: Close patient list
-        - 3rd click: Close Meditech session
+        step_15 now handles multiple clicks automatically via verification loop.
         Then continues with steps 16-19.
         """
         logger.info("[STEWARD SUMMARY] Cleaning up with patient detail open...")
         try:
-            # Close Meditech - need 3 clicks when patient detail is open
-            # (step_15 internally does 2, so we do 1 extra before)
-            close_image = config.get_rpa_setting("images.steward_close_meditech")
-            location = pyautogui.locateOnScreen(close_image, confidence=0.8)
-            if location:
-                logger.info("[STEWARD SUMMARY] Extra close click for patient detail...")
-                self.safe_click(location, "Close Meditech (extra)")
-                stoppable_sleep(1)
-
-            # Now do the normal step_15 (2 clicks)
+            # Close Meditech - step_15 handles multiple clicks automatically
             self._steward_flow.step_15_close_meditech()
 
             # Right click on logged out tab

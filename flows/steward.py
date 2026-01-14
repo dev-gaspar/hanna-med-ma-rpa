@@ -706,10 +706,11 @@ class StewardFlow(BaseFlow):
         return True
 
     def step_15_close_meditech(self):
-        """Close Meditech."""
+        """Close Meditech - with verification loop for multiple windows."""
         self.set_step("STEP_15_CLOSE_MEDITECH")
         logger.info("[STEP 15] Closing Meditech")
 
+        # --- Original behavior: find and click twice ---
         close_meditech = self.wait_for_element(
             config.get_rpa_setting("images.steward_close_meditech"),
             timeout=config.get_timeout("steward.close_meditech"),
@@ -728,6 +729,33 @@ class StewardFlow(BaseFlow):
             raise Exception("Failed to click on Close Meditech (second click)")
 
         stoppable_sleep(2)
+
+        # --- New: Verification loop - keep clicking while button is still visible ---
+        max_extra_clicks = 3
+        extra_clicks = 0
+
+        while extra_clicks < max_extra_clicks:
+            # Check if close button is still visible (short timeout)
+            still_visible = self.wait_for_element(
+                config.get_rpa_setting("images.steward_close_meditech"),
+                timeout=3,
+                description="Close Meditech (verification)",
+            )
+
+            if not still_visible:
+                # Button no longer visible, we're done
+                break
+
+            # Button still visible, click again
+            extra_clicks += 1
+            logger.info(
+                f"[STEP 15] Close button still visible, clicking again ({extra_clicks}/{max_extra_clicks})"
+            )
+            self.safe_click(
+                still_visible, f"Close Meditech (extra click {extra_clicks})"
+            )
+            stoppable_sleep(1.5)
+
         logger.info("[STEP 15] Meditech closed")
         return True
 
