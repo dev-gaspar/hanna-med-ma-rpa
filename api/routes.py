@@ -427,9 +427,10 @@ async def start_batch_summary_flow(
     hospital = body.hospital_type.value
 
     if not is_hospital_supported(hospital):
+        from flows.batch_summary_registry import get_available_hospitals
         return {
             "success": False,
-            "message": f"Batch summary not supported for: {hospital}. Supported: JACKSON, BAPTIST",
+            "message": f"Batch summary not supported for: {hospital}. Supported: {get_available_hospitals()}",
         }
 
     logger.info(

@@ -136,7 +136,8 @@
 		"steward_ok_preview_btn": "images/{resolution}/steward/step10_ok_preview_btn.png",
 		"steward_tab_document_btn": "images/{resolution}/steward/step11_tab_document_btn.png",
 		"steward_close_tab_document_btn": "images/{resolution}/steward/step12_close_tab_document_btn.png",
-		"steward_close_modal_document_detail": "images/{resolution}/steward/step13_close_modal_document_detail.png"
+		"steward_close_modal_document_detail": "images/{resolution}/steward/step13_close_modal_document_detail.png",
+		"steward_rounds_patients_view": "images/{resolution}/steward/rounds_patients_view.png"
 	},
 	"timeouts": {
 		"default": 60,

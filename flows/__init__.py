@@ -19,6 +19,7 @@ from .batch_summary_registry import (
 )
 from .jackson_batch_summary import JacksonBatchSummaryFlow
 from .baptist_batch_summary import BaptistBatchSummaryFlow
+from .steward_batch_summary import StewardBatchSummaryFlow
 
 # Flow registry for dynamic dispatch
 FLOW_REGISTRY = {
@@ -31,6 +32,7 @@ FLOW_REGISTRY = {
     # Batch summaries
     "jackson_batch_summary": JacksonBatchSummaryFlow,
     "baptist_batch_summary": BaptistBatchSummaryFlow,
+    "steward_batch_summary": StewardBatchSummaryFlow,
 }
 
 
@@ -66,6 +68,7 @@ __all__ = [
     "BaseBatchSummaryFlow",
     "JacksonBatchSummaryFlow",
     "BaptistBatchSummaryFlow",
+    "StewardBatchSummaryFlow",
     "FLOW_REGISTRY",
     "get_flow",
     "get_batch_summary_flow",

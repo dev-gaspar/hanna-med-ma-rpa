@@ -21,8 +21,7 @@ if TYPE_CHECKING:
 BATCH_SUMMARY_FLOWS = {
     "JACKSON": "flows.jackson_batch_summary.JacksonBatchSummaryFlow",
     "BAPTIST": "flows.baptist_batch_summary.BaptistBatchSummaryFlow",
-    # Future EMRs:
-    # "STEWARD": "flows.steward_batch_summary.StewardBatchSummaryFlow",
+    "STEWARD": "flows.steward_batch_summary.StewardBatchSummaryFlow",
 }
 
 
