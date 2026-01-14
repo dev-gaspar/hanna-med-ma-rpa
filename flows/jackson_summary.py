@@ -69,6 +69,7 @@ class JacksonSummaryFlow(BaseFlow):
         doctor_name=None,
         credentials=None,
         patient_name=None,
+        doctor_specialty=None,
         **kwargs,
     ):
         """Setup flow with execution context including patient name."""
@@ -82,6 +83,7 @@ class JacksonSummaryFlow(BaseFlow):
             **kwargs,
         )
         self.patient_name = patient_name
+        self.doctor_specialty = doctor_specialty
 
         # Also setup the internal Jackson flow reference
         self._jackson_flow.setup(
@@ -89,6 +91,8 @@ class JacksonSummaryFlow(BaseFlow):
         )
 
         logger.info(f"[JACKSON SUMMARY] Patient to find: {patient_name}")
+        if doctor_specialty:
+            logger.info(f"[JACKSON SUMMARY] Doctor specialty: {doctor_specialty}")
 
     def execute(self):
         """Execute the hybrid flow for patient summary retrieval."""
@@ -264,6 +268,7 @@ class JacksonSummaryFlow(BaseFlow):
         runner = JacksonSummaryRunner(
             max_steps=30,
             step_delay=1,
+            doctor_specialty=self.doctor_specialty,
         )
 
         result = runner.run(patient_name=self.patient_name)
@@ -557,6 +562,7 @@ class JacksonSummaryFlow(BaseFlow):
             "instance": self.instance,
             "trigger_type": self.trigger_type,
             "doctor_name": self.doctor_name,
+            "doctor_specialty": self.doctor_specialty,
         }
         # Send to dedicated summary webhook using base method
         response = self._send_to_summary_webhook_n8n(payload)

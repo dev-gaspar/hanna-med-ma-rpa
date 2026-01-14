@@ -17,6 +17,7 @@ from flows import (
     JacksonFlow,
     JacksonSummaryFlow,
     StewardFlow,
+    StewardSummaryFlow,
 )
 
 from .models import (
@@ -201,6 +202,7 @@ async def start_jackson_summary_flow(
         body.doctor_name,
         body.credentials,
         patient_name=body.patient_name,
+        doctor_specialty=body.doctor_specialty,
     )
 
     return {
@@ -245,11 +247,57 @@ async def start_baptist_summary_flow(
         body.doctor_name,
         body.credentials,
         patient_name=body.patient_name,
+        doctor_specialty=body.doctor_specialty,
     )
 
     return {
         "success": True,
         "message": f"Baptist patient summary flow started for patient: {body.patient_name}",
+    }
+
+
+@router.post("/start-steward-summary-flow", response_model=StartRPAResponse)
+async def start_steward_summary_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Steward Patient Summary flow - hybrid RPA + Agentic.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list (Rounds Patients)
+    2. Uses agentic brain to find the patient and extract data
+    3. Uses traditional RPA to close and cleanup
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Steward Summary)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run hybrid flow in background
+    flow = StewardSummaryFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        patient_name=body.patient_name,
+        doctor_specialty=body.doctor_specialty,
+    )
+
+    return {
+        "success": True,
+        "message": f"Steward patient summary flow started for patient: {body.patient_name}",
     }
 
 
@@ -319,6 +367,11 @@ async def queue_rpa_flow(body: QueueRPARequest, background_tasks: BackgroundTask
     This endpoint adds the request to a queue and processes it when the RPA is available.
     Used for batch operations where multiple hospitals need to be processed sequentially.
     """
+    # Convert Pydantic credentials to dicts for queue storage
+    credentials = None
+    if body.credentials:
+        credentials = [c.model_dump() for c in body.credentials]
+
     request_data = {
         "hospital_type": body.hospital_type.value,
         "execution_id": body.execution_id,
@@ -326,7 +379,7 @@ async def queue_rpa_flow(body: QueueRPARequest, background_tasks: BackgroundTask
         "instance": body.instance,
         "trigger_type": body.trigger_type,
         "doctor_name": body.doctor_name,
-        "credentials": body.credentials,
+        "credentials": credentials,
         "batch_id": body.batch_id,
     }
 
@@ -374,9 +427,10 @@ async def start_batch_summary_flow(
     hospital = body.hospital_type.value
 
     if not is_hospital_supported(hospital):
+        from flows.batch_summary_registry import get_available_hospitals
         return {
             "success": False,
-            "message": f"Batch summary not supported for: {hospital}. Supported: JACKSON, BAPTIST",
+            "message": f"Batch summary not supported for: {hospital}. Supported: {get_available_hospitals()}",
         }
 
     logger.info(
@@ -406,6 +460,7 @@ async def start_batch_summary_flow(
         credentials,
         patient_names=body.patient_names,
         hospital_type=hospital,
+        doctor_specialty=body.doctor_specialty,
     )
 
     logger.info(f"[BATCH-SUMMARY] Background task queued, returning response")

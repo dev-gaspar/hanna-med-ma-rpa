@@ -8,9 +8,13 @@ Uso:
 Instrucciones:
     1. Ejecutar el script (con o sin imagen)
     2. Dibujar rectángulos con el mouse (click + arrastrar)
-    3. Los rectángulos permanecen visibles
-    4. Las coordenadas se imprimen en la consola
-    5. Copiar al rpa_config.json
+    3. Usar scrollbars o rueda del mouse para navegar imágenes grandes
+    4. Los rectángulos permanecen visibles
+    5. Las coordenadas se imprimen en la consola (100% precisas)
+    6. Copiar al rpa_config.json
+
+Nota: La imagen siempre se muestra al 100% para máxima precisión.
+      Si es más grande que la pantalla, usa scroll para navegar.
 """
 
 import sys
@@ -36,15 +40,63 @@ class ROICalibrator:
             self.screenshot = ImageGrab.grab()
             print("📷 Usando captura de pantalla actual")
 
-        print(f"   Tamaño: {self.screenshot.width} x {self.screenshot.height}")
+        self.img_width = self.screenshot.width
+        self.img_height = self.screenshot.height
+        print(f"   Tamaño: {self.img_width} x {self.img_height}")
 
-        # Canvas del tamaño de la imagen
-        self.canvas = tk.Canvas(
-            self.root, width=self.screenshot.width, height=self.screenshot.height
+        # Calcular tamaño de ventana (máximo 90% de pantalla)
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        max_win_width = int(screen_width * 0.90)
+        max_win_height = int(screen_height * 0.85)  # Dejar espacio para labels
+
+        # Determinar si necesitamos scroll
+        self.needs_scroll = (
+            self.img_width > max_win_width or self.img_height > max_win_height
         )
-        self.canvas.pack()
 
-        # Mostrar screenshot
+        # Tamaño del viewport (área visible del canvas)
+        viewport_width = min(self.img_width, max_win_width)
+        viewport_height = min(
+            self.img_height, max_win_height - 80
+        )  # Espacio para labels
+
+        if self.needs_scroll:
+            print(f"   📜 Imagen grande - scroll habilitado")
+            print(f"   Viewport: {viewport_width} x {viewport_height}")
+
+        # Frame para contener canvas y scrollbars
+        self.canvas_frame = tk.Frame(self.root)
+        self.canvas_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbars
+        self.h_scrollbar = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
+        self.v_scrollbar = tk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL)
+
+        # Canvas con scrollbars - tamaño del viewport, scrollregion del tamaño de imagen
+        self.canvas = tk.Canvas(
+            self.canvas_frame,
+            width=viewport_width,
+            height=viewport_height,
+            xscrollcommand=self.h_scrollbar.set,
+            yscrollcommand=self.v_scrollbar.set,
+            scrollregion=(0, 0, self.img_width, self.img_height),
+        )
+
+        # Configurar scrollbars
+        self.h_scrollbar.config(command=self.canvas.xview)
+        self.v_scrollbar.config(command=self.canvas.yview)
+
+        # Layout con grid
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.v_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.h_scrollbar.grid(row=1, column=0, sticky="ew")
+
+        # Hacer que el canvas se expanda
+        self.canvas_frame.grid_rowconfigure(0, weight=1)
+        self.canvas_frame.grid_columnconfigure(0, weight=1)
+
+        # Mostrar screenshot al 100%
         self.photo = ImageTk.PhotoImage(self.screenshot)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
 
@@ -56,10 +108,18 @@ class ROICalibrator:
         self.saved_texts = []  # Textos de los rectángulos
         self.region_count = 0  # Contador de regiones
 
-        # Bindings
+        # Bindings para dibujar
         self.canvas.bind("<Button-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
+
+        # Bindings para scroll con rueda del mouse
+        self.canvas.bind("<MouseWheel>", self.on_mousewheel_y)  # Windows
+        self.canvas.bind(
+            "<Shift-MouseWheel>", self.on_mousewheel_x
+        )  # Shift+Wheel para horizontal
+
+        # Bindings de teclado
         self.root.bind("<Escape>", lambda e: self.root.destroy())
         self.root.bind("<c>", self.clear_all)
         self.root.bind("<C>", self.clear_all)
@@ -67,13 +127,14 @@ class ROICalibrator:
         self.root.bind("<Z>", self.undo_last)
 
         # Label de instrucciones
+        scroll_info = " | Scroll: Rueda mouse" if self.needs_scroll else ""
         self.label = tk.Label(
             self.root,
-            text="🖱️ Dibuja rectángulos | C = Limpiar | Z = Deshacer | ESC = Salir",
-            font=("Arial", 12),
+            text=f"🖱️ Dibuja rectángulos | C = Limpiar | Z = Deshacer | ESC = Salir{scroll_info}",
+            font=("Arial", 11),
             bg="yellow",
         )
-        self.label.pack()
+        self.label.pack(fill=tk.X)
 
         # Label para mostrar coordenadas
         self.coords_label = tk.Label(
@@ -89,23 +150,44 @@ class ROICalibrator:
         print("  - C                 → Limpiar todo")
         print("  - Z                 → Deshacer último")
         print("  - ESC               → Salir")
+        if self.needs_scroll:
+            print("-" * 60)
+            print("  - Rueda mouse       → Scroll vertical")
+            print("  - Shift + Rueda     → Scroll horizontal")
+        print("=" * 60)
+        print("📍 Coordenadas 100% precisas (imagen sin escalar)")
         print("=" * 60 + "\n")
 
+    def on_mousewheel_y(self, event):
+        """Scroll vertical con rueda del mouse."""
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def on_mousewheel_x(self, event):
+        """Scroll horizontal con Shift + rueda del mouse."""
+        self.canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _canvas_coords(self, event):
+        """Convierte coordenadas del evento a coordenadas reales del canvas (imagen)."""
+        # canvasx/canvasy convierten coordenadas de ventana a coordenadas de canvas
+        return int(self.canvas.canvasx(event.x)), int(self.canvas.canvasy(event.y))
+
     def on_press(self, event):
-        self.start_x = event.x
-        self.start_y = event.y
+        self.start_x, self.start_y = self._canvas_coords(event)
 
     def on_drag(self, event):
         # Eliminar rectángulo temporal anterior
         if self.current_rect:
             self.canvas.delete(self.current_rect)
 
+        # Obtener coordenadas reales del canvas
+        curr_x, curr_y = self._canvas_coords(event)
+
         # Dibujar nuevo rectángulo temporal (mientras se arrastra)
         self.current_rect = self.canvas.create_rectangle(
             self.start_x,
             self.start_y,
-            event.x,
-            event.y,
+            curr_x,
+            curr_y,
             outline="red",
             width=2,
             dash=(4, 2),  # Línea punteada mientras arrastra
@@ -117,11 +199,14 @@ class ROICalibrator:
             self.canvas.delete(self.current_rect)
             self.current_rect = None
 
+        # Obtener coordenadas reales del canvas
+        end_x, end_y = self._canvas_coords(event)
+
         # Calcular coordenadas normalizadas (x1 < x2, y1 < y2)
-        x1 = min(self.start_x, event.x)
-        y1 = min(self.start_y, event.y)
-        x2 = max(self.start_x, event.x)
-        y2 = max(self.start_y, event.y)
+        x1 = min(self.start_x, end_x)
+        y1 = min(self.start_y, end_y)
+        x2 = max(self.start_x, end_x)
+        y2 = max(self.start_y, end_y)
 
         w = x2 - x1
         h = y2 - y1

@@ -59,6 +59,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         credentials=None,
         patient_names=None,
         hospital_type=None,
+        doctor_specialty=None,
         **kwargs,
     ):
         """Setup flow with execution context."""
@@ -73,6 +74,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
             hospital_type=hospital_type,
             **kwargs,
         )
+        self.doctor_specialty = doctor_specialty
         # Also setup the internal Jackson flow reference
         self._jackson_flow.setup(
             self.execution_id,
@@ -82,6 +84,8 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
             self.doctor_name,
             self.credentials,
         )
+        if doctor_specialty:
+            logger.info(f"[JACKSON-BATCH] Doctor specialty: {doctor_specialty}")
 
     def execute(self):
         """
@@ -271,6 +275,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         runner = JacksonSummaryRunner(
             max_steps=30,
             step_delay=1.0,
+            doctor_specialty=self.doctor_specialty,
         )
 
         result = runner.run(patient_name=patient_name)

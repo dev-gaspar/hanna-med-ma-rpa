@@ -62,16 +62,18 @@ class BaptistSummaryRunner:
         max_steps: int = 30,
         step_delay: float = 1.5,
         vdi_enhance: bool = True,  # Enable VDI image enhancement by default for Baptist
+        doctor_specialty: str = None,
     ):
         self.max_steps = max_steps
         self.step_delay = step_delay
         self.vdi_enhance = vdi_enhance  # Apply upscaling/contrast for VDI OCR
+        self.doctor_specialty = doctor_specialty
 
         # Components
         self.omniparser = get_omniparser_client()
         self.capturer = get_screen_capturer()
         self.patient_finder = PatientFinderAgent()
-        self.report_finder = ReportFinderAgent()
+        self.report_finder = ReportFinderAgent(doctor_specialty=doctor_specialty)
 
         # RPA Bot instance for robust modal handling
         self.rpa = RPABotBase()

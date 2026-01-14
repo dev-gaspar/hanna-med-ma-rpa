@@ -257,7 +257,13 @@ class BaseFlow(RPABotBase, ABC):
 
         try:
             result = self.execute()
-            self.notify_completion(result)
+
+            # Only notify completion if result doesn't have an error
+            # (errors are already notified by notify_error() in execute())
+            # Note: Baptist returns list of screenshots, summary flows return dict
+            has_error = isinstance(result, dict) and result.get("error")
+            if result and not has_error:
+                self.notify_completion(result)
 
             print("\n" + "=" * 70)
             print(f" {self.FLOW_NAME.upper()} COMPLETED SUCCESSFULLY")

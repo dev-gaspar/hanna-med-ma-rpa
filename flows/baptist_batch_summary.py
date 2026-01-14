@@ -53,6 +53,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
         credentials=None,
         patient_names=None,
         hospital_type=None,
+        doctor_specialty=None,
         **kwargs,
     ):
         """Setup flow with execution context."""
@@ -67,6 +68,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
             hospital_type=hospital_type,
             **kwargs,
         )
+        self.doctor_specialty = doctor_specialty
         # Also setup the internal Baptist flow reference
         self._baptist_flow.setup(
             self.execution_id,
@@ -76,6 +78,8 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
             self.doctor_name,
             self.credentials,
         )
+        if doctor_specialty:
+            logger.info(f"[BAPTIST-BATCH] Doctor specialty: {doctor_specialty}")
 
     def execute(self):
         """
@@ -275,6 +279,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
             max_steps=30,
             step_delay=1,
             vdi_enhance=True,
+            doctor_specialty=self.doctor_specialty,
         )
 
         result = runner.run(patient_name=patient_name)
