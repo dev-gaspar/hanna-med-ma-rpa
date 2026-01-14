@@ -732,24 +732,37 @@ class StewardFlow(BaseFlow):
         return True
 
     def step_16_tab_logged_out(self):
-        """Right click on logged out tab."""
+        """Right click on logged out tab (with fallback to unexpected error tab)."""
         self.set_step("STEP_16_TAB_LOGGED_OUT")
         logger.info("[STEP 16] Right clicking on logged out tab")
 
-        logged_out_tab = self.wait_for_element(
+        # Try primary: logged out tab
+        tab_location = self.wait_for_element(
             config.get_rpa_setting("images.steward_tab_logged_out"),
             timeout=config.get_timeout("steward.logged_out_tab"),
             description="Logged Out Tab",
         )
-        if not logged_out_tab:
-            raise Exception("Logged Out Tab not found")
+
+        # Fallback: unexpected error tab
+        if not tab_location:
+            logger.warning(
+                "[STEP 16] Logged out tab not found, trying unexpected error tab..."
+            )
+            tab_location = self.wait_for_element(
+                config.get_rpa_setting("images.steward_tab_unexpected_error"),
+                timeout=10,
+                description="Unexpected Error Tab",
+            )
+
+        if not tab_location:
+            raise Exception("Neither Logged Out Tab nor Unexpected Error Tab found")
 
         # Right click on the tab
-        center = pyautogui.center(logged_out_tab)
+        center = pyautogui.center(tab_location)
         pyautogui.rightClick(center)
         stoppable_sleep(1)
 
-        logger.info("[STEP 16] Logged out tab right-clicked")
+        logger.info("[STEP 16] Tab right-clicked")
         return True
 
     def step_17_close_tab_final(self):

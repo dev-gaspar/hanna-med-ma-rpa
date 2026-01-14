@@ -109,6 +109,7 @@
 		"steward_cancel_modal": "images/{resolution}/steward/step11_cancel_modal.png",
 		"steward_close_meditech": "images/{resolution}/steward/step12_close_meditech.png",
 		"steward_tab_logged_out": "images/{resolution}/steward/step13_tab_logged_out.png",
+		"steward_tab_unexpected_error": "images/{resolution}/steward/tab_unexpected_error.png",
 		"steward_url": "images/{resolution}/steward/step14_url.png",
 		"steward_vdi_desktop_tab": "images/{resolution}/steward/step15_vdi_desktop_tab.png",
 		"steward_status_sesion_abierta": "images/{resolution}/steward/status_sesion_abierta.png",
