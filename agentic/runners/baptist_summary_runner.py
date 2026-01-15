@@ -294,22 +294,41 @@ class BaptistSummaryRunner:
 
             # Handle running status - execute the action
             if result.status == "running":
-                if result.action == "click" and result.target_id is not None:
-                    # Clicking on a hospital tab to search there
-                    logger.info(
-                        f"[RUNNER] Clicking hospital tab element {result.target_id}"
-                    )
-                    tools.click_element(result.target_id, elements, action="click")
+                # Handle tab navigation using image-based tools
+                if result.action == "click_tab_1":
+                    logger.info("[RUNNER] Clicking Hospital Tab 1 (HH) via image tool")
+                    tool_result = tools.click_tab_hospital_1()
+                    if "error" in tool_result:
+                        logger.warning(f"[RUNNER] Tab 1 click failed: {tool_result}")
+                    checked_tabs.append("HH")
+                    self.rpa.stoppable_sleep(2.5)
+                    continue
 
-                    # Extract tab name from reasoning for tracking
-                    tab_name = f"Tab-{result.target_id}"
-                    for tab_keyword in ["HH-", "smh", "wkbh", "BHM"]:
-                        if tab_keyword.lower() in result.reasoning.lower():
-                            tab_name = tab_keyword
-                            break
-                    checked_tabs.append(tab_name)
+                elif result.action == "click_tab_2":
+                    logger.info("[RUNNER] Clicking Hospital Tab 2 (SMH) via image tool")
+                    tool_result = tools.click_tab_hospital_2()
+                    if "error" in tool_result:
+                        logger.warning(f"[RUNNER] Tab 2 click failed: {tool_result}")
+                    checked_tabs.append("SMH")
+                    self.rpa.stoppable_sleep(2.5)
+                    continue
 
-                    self.rpa.stoppable_sleep(2.5)  # Wait for tab to load
+                elif result.action == "click_tab_3":
+                    logger.info("[RUNNER] Clicking Hospital Tab 3 (WKBH) via image tool")
+                    tool_result = tools.click_tab_hospital_3()
+                    if "error" in tool_result:
+                        logger.warning(f"[RUNNER] Tab 3 click failed: {tool_result}")
+                    checked_tabs.append("WKBH")
+                    self.rpa.stoppable_sleep(2.5)
+                    continue
+
+                elif result.action == "click_tab_4":
+                    logger.info("[RUNNER] Clicking Hospital Tab 4 (BHM) via image tool")
+                    tool_result = tools.click_tab_hospital_4()
+                    if "error" in tool_result:
+                        logger.warning(f"[RUNNER] Tab 4 click failed: {tool_result}")
+                    checked_tabs.append("BHM")
+                    self.rpa.stoppable_sleep(2.5)
                     continue
 
                 elif result.action == "wait":

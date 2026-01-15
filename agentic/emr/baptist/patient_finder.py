@@ -23,10 +23,10 @@ TASK: Find the patient "{patient_name}" in the patient list visible on screen.
 === UNDERSTANDING BAPTIST PATIENT LIST ===
 
 Baptist Health has 4 HOSPITAL TABS at the top of the patient list:
-1. HH-South Florida Foot_Ankle Institute
-2. smh - South Florida Foot_Ankle Institute
-3. wkbh - South Florida Foot_Ankle Institute
-4. BHM South Florida Foot_Ankle Institute
+1. HH (Homestead Hospital) - Tab 1
+2. SMH (South Miami Hospital) - Tab 2  
+3. WKBH (West Kendall Baptist Hospital) - Tab 3
+4. BHM (Baptist Hospital of Miami) - Tab 4
 
 The patient could be in ANY of these tabs. You must search across ALL tabs.
 
@@ -41,14 +41,17 @@ You DO NOT click on patients. You only REPORT when you find them.
 
 === AVAILABLE ACTIONS ===
 
-| Status      | Action | Effect                                              |
-|-------------|--------|-----------------------------------------------------|
-| found       | -      | Patient located! Return their element ID. NO CLICK. |
-| running     | click  | Click on a HOSPITAL TAB to search in another tab    |
-| running     | wait   | Wait for screen to load after clicking a tab        |
-| not_found   | -      | All 4 tabs checked, patient not in any of them      |
+| Status      | Action       | Effect                                                |
+|-------------|--------------|-------------------------------------------------------|
+| found       | -            | Patient located! Return their element ID. NO CLICK.   |
+| running     | click_tab_1  | Switch to Hospital 1 (HH) using image recognition     |
+| running     | click_tab_2  | Switch to Hospital 2 (SMH) using image recognition    |
+| running     | click_tab_3  | Switch to Hospital 3 (WKBH) using image recognition   |
+| running     | click_tab_4  | Switch to Hospital 4 (BHM) using image recognition    |
+| running     | wait         | Wait for screen to load after clicking a tab          |
+| not_found   | -            | All 4 tabs checked, patient not in any of them        |
 
-IMPORTANT: The "click" action is ONLY for hospital tabs, NEVER for patients.
+IMPORTANT: Use click_tab_X actions to navigate between hospital tabs.
 When you find the patient, just return status="found" + target_id. The system will handle the click.
 
 === HOW TO SEARCH ===
@@ -56,7 +59,7 @@ When you find the patient, just return status="found" + target_id. The system wi
 1. Scan the current patient list for "{patient_name}"
 2. Patient names appear as "LASTNAME, FIRSTNAME" format (case-insensitive)
 3. If patient IS visible → Return status="found" + target_id=<patient_element_id>
-4. If patient NOT visible → Click on another hospital tab to search there
+4. If patient NOT visible → Use click_tab_X to switch to another hospital tab
 5. After clicking a tab, return action="wait" to let it load
 
 === OUTPUT RULES ===
@@ -64,30 +67,33 @@ When you find the patient, just return status="found" + target_id. The system wi
 - status="found" + target_id=<patient_element_id>
   → Patient is visible in the list. Return their ID. DO NOT CLICK.
   
-- status="running" + action="click" + target_id=<tab_element_id>
-  → Patient not here. Click on a hospital tab to search there.
+- status="running" + action="click_tab_1" (or click_tab_2, click_tab_3, click_tab_4)
+  → Patient not here. Switch to the specified hospital tab.
+  → NO target_id needed - the tool uses image recognition.
   
 - status="running" + action="wait"
   → Use this in TWO situations:
     1. Just clicked a tab, waiting for the new patient list to load
-    2. OCR RETRY: You SEE the patient (or a tab) in the screenshot, but CANNOT find 
+    2. OCR RETRY: You SEE the patient in the screenshot, but CANNOT find 
        a matching element ID in UI_ELEMENTS. Return "wait" to retry with fresh OCR.
   
 - status="not_found"
   → All 4 hospital tabs have been checked, patient not found.
 
+=== WHICH TAB AM I ON? ===
+
+Look at the TABS ALREADY CHECKED section. If empty, you're on Tab 1 (HH).
+Plan your search: check all 4 tabs systematically.
+
 === OCR RETRY STRATEGY ===
 
-Sometimes OmniParser's OCR misses text. If you:
+Sometimes OmniParser's OCR misses patient names. If you:
 - See "{patient_name}" in the screenshot but can't find their ID in UI_ELEMENTS
-- See a hospital tab you need but can't find its ID in UI_ELEMENTS
 
 Then return: status="running" + action="wait"
 
 This will trigger a new screen capture with fresh OCR. 
 You have up to 10 steps, so 1-2 retries are acceptable.
-
-NEVER invent element IDs. If you can't find the ID, use "wait" to retry.
 
 === ROW-BASED FALLBACK (after 1-2 waits) ===
 
@@ -104,31 +110,21 @@ EXAMPLE:
 - UI_ELEMENTS has: [10] "945758058" (FIN), [11] "Blandon" (Physician)
 - Return target_id=10 or target_id=11 → Row gets selected!
 
-FOR HOSPITAL TABS:
-- Same principle: if tab text is garbled, click any element in that tab area
-- Tab elements are typically at the top of the view
-
 IMPORTANT: Do NOT wait more than 2 times. After 2 waits, use row-adjacent elements.
 
 === CRITICAL RULES ===
 
 1. NEVER click on the patient row - only REPORT their ID
-2. The "click" action is EXCLUSIVELY for hospital tabs
-3. target_id MUST be a valid ID from UI_ELEMENTS list
+2. Use click_tab_X actions to switch tabs (no target_id needed)
+3. target_id is ONLY needed when status="found"
 4. After clicking a tab, the next step should be action="wait"
-5. Check HISTORY to see which tabs you've already clicked
+5. Check HISTORY and TABS ALREADY CHECKED to avoid revisiting tabs
 6. Maximum 10 steps - be efficient!
 
-=== IDENTIFYING ELEMENTS ===
+=== IDENTIFYING PATIENT ROWS ===
 
-HOSPITAL TABS (clickable):
-- Elements containing "HH-", "smh", "wkbh", "BHM"
-- Located at the TOP of the view
-- Text like "South Florida Foot" or similar practice names
-
-PATIENT ROWS (NOT clickable - just report their ID):
-- Elements containing patient names in "LASTNAME, FIRSTNAME" format
-- Located in the main list area"""
+Look for elements containing patient names in "LASTNAME, FIRSTNAME" format.
+If exact name not found, look for adjacent elements (FIN, physician, etc.) in same row."""
 
 
 USER_PROMPT = """Analyze this screenshot of the Baptist patient list.
@@ -159,15 +155,18 @@ Patient to find: {patient_name}
    → NO: Go to step 3
 
 3. Are there hospital tabs you haven't searched yet?
-   → YES + Found tab ID in UI_ELEMENTS: Return status="running" + action="click" + target_id=<tab_ID>
-   → YES + Cannot find tab ID: Return status="running" + action="wait" (OCR retry)
+   → YES: Return status="running" + action="click_tab_X" (where X is 1, 2, 3, or 4)
+          Tab 1 = HH (Homestead Hospital)
+          Tab 2 = SMH (South Miami Hospital)
+          Tab 3 = WKBH (West Kendall Baptist Hospital)
+          Tab 4 = BHM (Baptist Hospital of Miami)
    → NO: Return status="not_found"
           (All tabs checked, patient not found)
 
 REMEMBER:
-- "found" = patient visible AND you have their element ID
-- "click" = ONLY for hospital tabs, NEVER for patients
-- "wait" = after clicking tab OR when you see something but OCR missed the ID
+- "found" = patient visible AND you have their element ID (use target_id)
+- "click_tab_X" = use image-based tool to switch tabs (NO target_id needed)
+- "wait" = after clicking tab OR when you see patient but OCR missed the ID
 
 Decide your response."""
 
@@ -183,13 +182,15 @@ class PatientFinderResult(BaseModel):
     status: Literal["running", "found", "not_found", "error"] = Field(
         description="'found' when patient located, 'running' to click a tab and continue, 'not_found' if all tabs checked, 'error' if failed"
     )
-    action: Optional[Literal["click", "wait"]] = Field(
+    action: Optional[
+        Literal["click_tab_1", "click_tab_2", "click_tab_3", "click_tab_4", "wait"]
+    ] = Field(
         default=None,
-        description="Action to perform. Only used when status='running'. 'click' to switch hospital tab, 'wait' after clicking tab.",
+        description="Action to perform. Only used when status='running'. 'click_tab_X' to switch to hospital tab X (1-4), 'wait' after clicking tab.",
     )
     target_id: Optional[int] = Field(
         default=None,
-        description="Element ID. For 'found': the patient row ID. For 'running'+'click': the hospital tab ID.",
+        description="Element ID. Only needed when status='found' - the patient row element ID.",
     )
     reasoning: str = Field(
         description="Explain: What you see → What you're trying → Why this action"

@@ -340,26 +340,91 @@ class BaseFlow(RPABotBase, ABC):
     # Fullscreen Toggle Methods (EMR-agnostic)
     # =========================================================================
 
-    def _click_fullscreen(self):
+    def _click_fullscreen(self, max_retries: int = 3) -> bool:
         """
-        Click fullscreen button for better visualization.
+        Click fullscreen button and verify it worked by checking if normalscreen is visible.
         Uses EMR_TYPE to find the correct image in config.
+
+        Args:
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            True if fullscreen mode was confirmed, False otherwise
         """
-        img_key = f"images.{self.EMR_TYPE.lower()}_fullscreen_btn"
-        fullscreen_img = config.get_rpa_setting(img_key)
+        fullscreen_img_key = f"images.{self.EMR_TYPE.lower()}_fullscreen_btn"
+        normalscreen_img_key = f"images.{self.EMR_TYPE.lower()}_normalscreen_btn"
+
+        fullscreen_img = config.get_rpa_setting(fullscreen_img_key)
+        normalscreen_img = config.get_rpa_setting(normalscreen_img_key)
+
         if not fullscreen_img:
             logger.warning(f"[{self.EMR_TYPE.upper()}] Fullscreen image not configured")
-            return
-        try:
-            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info(f"[{self.EMR_TYPE.upper()}] Clicked fullscreen button")
-                stoppable_sleep(1)
-            else:
-                logger.warning(f"[{self.EMR_TYPE.upper()}] Fullscreen button not found")
-        except Exception as e:
-            logger.warning(f"[{self.EMR_TYPE.upper()}] Error clicking fullscreen: {e}")
+            return False
+
+        if not normalscreen_img:
+            logger.warning(
+                f"[{self.EMR_TYPE.upper()}] Normalscreen image not configured for verification"
+            )
+            return False
+
+        for attempt in range(max_retries):
+            try:
+                # Try to click fullscreen button
+                location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
+                if location:
+                    pyautogui.click(pyautogui.center(location))
+                    logger.info(
+                        f"[{self.EMR_TYPE.upper()}] Clicked fullscreen button (attempt {attempt + 1})"
+                    )
+                    stoppable_sleep(2)  # Wait for UI to transition
+
+                    # Verify fullscreen by checking if normalscreen button is now visible
+                    normalscreen_location = pyautogui.locateOnScreen(
+                        normalscreen_img, confidence=0.8
+                    )
+                    if normalscreen_location:
+                        logger.info(
+                            f"[{self.EMR_TYPE.upper()}] Fullscreen mode confirmed (normalscreen button visible)"
+                        )
+                        return True
+                    else:
+                        logger.warning(
+                            f"[{self.EMR_TYPE.upper()}] Fullscreen not confirmed - normalscreen button not visible "
+                            f"(attempt {attempt + 1}/{max_retries})"
+                        )
+                        if attempt < max_retries - 1:
+                            stoppable_sleep(1)
+                            continue
+                else:
+                    # Check if already in fullscreen (normalscreen visible means already fullscreen)
+                    normalscreen_location = pyautogui.locateOnScreen(
+                        normalscreen_img, confidence=0.8
+                    )
+                    if normalscreen_location:
+                        logger.info(
+                            f"[{self.EMR_TYPE.upper()}] Already in fullscreen mode"
+                        )
+                        return True
+                    else:
+                        logger.warning(
+                            f"[{self.EMR_TYPE.upper()}] Fullscreen button not found (attempt {attempt + 1}/{max_retries})"
+                        )
+                        if attempt < max_retries - 1:
+                            stoppable_sleep(1)
+                            continue
+
+            except Exception as e:
+                logger.warning(
+                    f"[{self.EMR_TYPE.upper()}] Error clicking fullscreen (attempt {attempt + 1}): {e}"
+                )
+                if attempt < max_retries - 1:
+                    stoppable_sleep(1)
+                    continue
+
+        logger.error(
+            f"[{self.EMR_TYPE.upper()}] Failed to enter fullscreen after {max_retries} attempts"
+        )
+        return False
 
     def _click_normalscreen(self):
         """

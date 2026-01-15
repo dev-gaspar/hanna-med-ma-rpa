@@ -287,35 +287,81 @@ class BaptistFlow(BaseFlow):
 
         if not menu_icon:
             raise Exception("Pineapple Connect did not load")
+
+        # Wait for page to fully stabilize after initial load
+        # This prevents race conditions where menu appears but page is still rendering
+        logger.info(
+            "[STEP 3] Pineapple Connect detected, waiting for page stabilization..."
+        )
+        stoppable_sleep(3)
+
         logger.info("[STEP 3] Pineapple Connect loaded")
         return True
 
     def step_4_open_menu(self):
-        """Open 3-dots menu."""
+        """Open 3-dots menu with retry logic for stability."""
         self.set_step("STEP_4_MENU")
         logger.info("[STEP 4] Opening menu")
 
-        menu_icon = self.wait_for_element(
-            config.get_rpa_setting("images.pineapple_menu"),
-            timeout=30,
-            description="3-dots menu",
-        )
-        if not menu_icon:
-            raise Exception("Menu not found")
+        max_retries = 3
+        for attempt in range(max_retries):
+            self.check_stop()
 
-        if not self.safe_click(menu_icon, "3-dots menu"):
-            raise Exception("Failed to open the menu")
+            # Try to find menu with decreasing confidence on retries
+            confidence_levels = [0.8, 0.75, 0.7]
+            current_confidence = confidence_levels[
+                min(attempt, len(confidence_levels) - 1)
+            ]
 
-        modal = self.wait_for_element(
-            config.get_rpa_setting("images.pineapple_modal"),
-            timeout=10,
-            description="menu modal",
-        )
-        if not modal:
-            raise Exception("Modal did not open")
+            menu_icon = self.wait_for_element(
+                config.get_rpa_setting("images.pineapple_menu"),
+                timeout=15,
+                confidence=current_confidence,
+                description="3-dots menu",
+            )
 
-        logger.info("[STEP 4] Menu opened")
-        return True
+            if not menu_icon:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"[STEP 4] Menu not found (attempt {attempt + 1}/{max_retries}), "
+                        f"waiting and retrying with confidence {confidence_levels[min(attempt + 1, len(confidence_levels) - 1)]}..."
+                    )
+                    stoppable_sleep(2)
+                    continue
+                else:
+                    raise Exception("Menu not found after all retry attempts")
+
+            if not self.safe_click(menu_icon, "3-dots menu"):
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"[STEP 4] Click failed (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                    stoppable_sleep(1)
+                    continue
+                else:
+                    raise Exception("Failed to open the menu after all retry attempts")
+
+            # Wait for modal to appear
+            modal = self.wait_for_element(
+                config.get_rpa_setting("images.pineapple_modal"),
+                timeout=10,
+                description="menu modal",
+            )
+
+            if modal:
+                logger.info("[STEP 4] Menu opened")
+                return True
+            else:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"[STEP 4] Modal did not open (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                    stoppable_sleep(2)
+                    continue
+                else:
+                    raise Exception("Modal did not open after all retry attempts")
+
+        raise Exception("Menu not found")
 
     def step_5_scroll_modal(self):
         """Scroll in the modal."""
@@ -474,8 +520,11 @@ class BaptistFlow(BaseFlow):
         hospitals = config.get_hospitals()
 
         # Enter fullscreen ONCE at the beginning for all captures
-        self._click_fullscreen()
-        stoppable_sleep(3)
+        if not self._click_fullscreen():
+            raise Exception(
+                "Failed to enter fullscreen mode - cannot capture hospital tabs correctly"
+            )
+        stoppable_sleep(2)
         logger.info("[STEP 11] Entered fullscreen mode for all captures")
 
         for idx, hospital in enumerate(hospitals, 1):

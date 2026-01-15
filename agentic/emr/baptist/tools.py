@@ -127,6 +127,131 @@ def click_hospital_tab(element_id: int, elements: list) -> str:
     return click_element(element_id, elements, action="click")
 
 
+# =============================================================================
+# Hospital Tab Navigation Tools (Image-based, more reliable than OmniParser)
+# =============================================================================
+
+
+def click_tab_hospital_1() -> str:
+    """
+    Click on Hospital 1 tab (HH - Homestead Hospital) using image recognition.
+    More reliable than OmniParser for tab navigation.
+
+    Returns:
+        "success" or error message
+    """
+    image_path = config.get_rpa_setting("images.baptist_patient_tab_1")
+    if not image_path:
+        logger.warning("[TOOL] baptist_patient_tab_1 image not configured")
+        return "error: image not configured"
+
+    try:
+        # High confidence (0.92) to avoid confusing similar tabs
+        location = pyautogui.locateOnScreen(image_path, confidence=0.92)
+        if location:
+            center = pyautogui.center(location)
+            pyautogui.click(center)
+            pyautogui.sleep(0.5)  # Wait for tab to activate
+            logger.info(f"[TOOL] click_tab_hospital_1: clicked at {center}")
+            return "success"
+        else:
+            logger.warning(f"[TOOL] click_tab_hospital_1: tab not found (image: {image_path})")
+            return "error: Hospital 1 tab not found"
+    except Exception as e:
+        logger.error(f"[TOOL] click_tab_hospital_1 error: {e}")
+        return f"error: {e}"
+
+
+def click_tab_hospital_2() -> str:
+    """
+    Click on Hospital 2 tab (SMH - South Miami Hospital) using image recognition.
+    More reliable than OmniParser for tab navigation.
+
+    Returns:
+        "success" or error message
+    """
+    image_path = config.get_rpa_setting("images.baptist_patient_tab_2")
+    if not image_path:
+        logger.warning("[TOOL] baptist_patient_tab_2 image not configured")
+        return "error: image not configured"
+
+    try:
+        # High confidence (0.92) to avoid confusing similar tabs
+        location = pyautogui.locateOnScreen(image_path, confidence=0.92)
+        if location:
+            center = pyautogui.center(location)
+            pyautogui.click(center)
+            pyautogui.sleep(0.5)  # Wait for tab to activate
+            logger.info(f"[TOOL] click_tab_hospital_2: clicked at {center}")
+            return "success"
+        else:
+            logger.warning(f"[TOOL] click_tab_hospital_2: tab not found (image: {image_path})")
+            return "error: Hospital 2 tab not found"
+    except Exception as e:
+        logger.error(f"[TOOL] click_tab_hospital_2 error: {e}")
+        return f"error: {e}"
+
+
+def click_tab_hospital_3() -> str:
+    """
+    Click on Hospital 3 tab (WKBH - West Kendall Baptist Hospital) using image recognition.
+    More reliable than OmniParser for tab navigation.
+
+    Returns:
+        "success" or error message
+    """
+    image_path = config.get_rpa_setting("images.baptist_patient_tab_3")
+    if not image_path:
+        logger.warning("[TOOL] baptist_patient_tab_3 image not configured")
+        return "error: image not configured"
+
+    try:
+        # High confidence (0.92) to avoid confusing similar tabs
+        location = pyautogui.locateOnScreen(image_path, confidence=0.92)
+        if location:
+            center = pyautogui.center(location)
+            pyautogui.click(center)
+            pyautogui.sleep(0.5)  # Wait for tab to activate
+            logger.info(f"[TOOL] click_tab_hospital_3: clicked at {center}")
+            return "success"
+        else:
+            logger.warning(f"[TOOL] click_tab_hospital_3: tab not found (image: {image_path})")
+            return "error: Hospital 3 tab not found"
+    except Exception as e:
+        logger.error(f"[TOOL] click_tab_hospital_3 error: {e}")
+        return f"error: {e}"
+
+
+def click_tab_hospital_4() -> str:
+    """
+    Click on Hospital 4 tab (BHM - Baptist Hospital of Miami) using image recognition.
+    More reliable than OmniParser for tab navigation.
+
+    Returns:
+        "success" or error message
+    """
+    image_path = config.get_rpa_setting("images.baptist_patient_tab_4")
+    if not image_path:
+        logger.warning("[TOOL] baptist_patient_tab_4 image not configured")
+        return "error: image not configured"
+
+    try:
+        # High confidence (0.92) to avoid confusing similar tabs
+        location = pyautogui.locateOnScreen(image_path, confidence=0.92)
+        if location:
+            center = pyautogui.center(location)
+            pyautogui.click(center)
+            pyautogui.sleep(0.5)  # Wait for tab to activate
+            logger.info(f"[TOOL] click_tab_hospital_4: clicked at {center}")
+            return "success"
+        else:
+            logger.warning(f"[TOOL] click_tab_hospital_4: tab not found (image: {image_path})")
+            return "error: Hospital 4 tab not found"
+    except Exception as e:
+        logger.error(f"[TOOL] click_tab_hospital_4 error: {e}")
+        return f"error: {e}"
+
+
 def scroll_tree_up(clicks: int = 3) -> str:
     """
     Scroll UP in the notes tree to see folders above the current view.

@@ -318,8 +318,9 @@ class JacksonFlow(BaseFlow):
         logger.info("[STEP 9] Capturing Screenshot")
 
         # Enter fullscreen for better ROI alignment
-        self._click_fullscreen()
-        stoppable_sleep(5)
+        if not self._click_fullscreen():
+            raise Exception("Failed to enter fullscreen mode - cannot capture screenshot correctly")
+        stoppable_sleep(3)
 
         # Load ROIs from config using base class method
         rois = self._get_rois("patient_finder")
