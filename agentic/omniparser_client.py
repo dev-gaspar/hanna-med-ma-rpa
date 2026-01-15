@@ -38,6 +38,8 @@ class OmniParserClient:
     RETRY_DELAY_SECONDS = 5
     # Extended timeout: 5 minutes for read, 30s for connect
     API_TIMEOUT = httpx.Timeout(300.0, connect=30.0)
+    # Request throttling: minimum seconds between requests to reduce rate limits
+    MIN_REQUEST_INTERVAL = 1.0
 
     def __init__(
         self,
@@ -90,6 +92,12 @@ class OmniParserClient:
             "agentic.omniparser_retry_delay", self.RETRY_DELAY_SECONDS
         )
 
+        # Request throttling to reduce rate limits
+        self.min_request_interval = config.get_rpa_setting(
+            "agentic.omniparser_min_request_interval", self.MIN_REQUEST_INTERVAL
+        )
+        self._last_request_time = 0.0
+
         logger.info(f"[OMNIPARSER] Initialized with model: {self.model[:50]}...")
 
     def parse_image(
@@ -113,6 +121,13 @@ class OmniParserClient:
         last_error = None
         # Use override if provided, otherwise use instance default
         imgsz = imgsz_override if imgsz_override is not None else self.imgsz
+
+        # Apply request throttling to reduce rate limit hits
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self.min_request_interval:
+            wait_time = self.min_request_interval - elapsed
+            time.sleep(wait_time)
+        self._last_request_time = time.time()
 
         for attempt in range(1, self.max_retries + 1):
             try:

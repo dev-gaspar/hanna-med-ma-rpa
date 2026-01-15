@@ -785,7 +785,9 @@ class StewardSummaryRunner:
         Returns:
             True if report found (status=finished), False otherwise
         """
-        MAX_REPORT_STEPS = 30
+        MAX_REPORT_STEPS = (
+            60  # Increased from 50 for very long hospital stays (2+ months)
+        )
         phase6_history: List[Dict[str, Any]] = []
         elements = []
 
@@ -853,12 +855,16 @@ class StewardSummaryRunner:
             # Execute action
             if report_result.action == "scroll_down":
                 logger.info("[RUNNER] Scrolling DOWN in document list...")
-                tools.scroll_down(clicks=2, roi_name="document_list")
+                tools.scroll_down(
+                    clicks=4, roi_name="document_list"
+                )  # 4 clicks for faster navigation
                 self.rpa.stoppable_sleep(1.0)
 
             elif report_result.action == "scroll_up":
                 logger.info("[RUNNER] Scrolling UP in document list...")
-                tools.scroll_up(clicks=2, roi_name="document_list")
+                tools.scroll_up(
+                    clicks=4, roi_name="document_list"
+                )  # 4 clicks for faster navigation
                 self.rpa.stoppable_sleep(1.0)
 
             elif report_result.action == "click":

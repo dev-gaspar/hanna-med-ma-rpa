@@ -101,7 +101,7 @@ If you haven't clicked a document yet, you CANNOT return "finished"!
 USER_PROMPT = """Analyze this Provider Notes view and find a clinical document.
 
 === CURRENT STATUS ===
-Step: {current_step}/20
+Step: {current_step}/60
 Steps remaining: {steps_remaining}
 Doctor Specialty: {specialty}
 
@@ -170,7 +170,9 @@ class ReportFinderAgent(BaseAgent):
 
     emr_type = "steward"
     agent_name = "report_finder"
-    max_steps = 20  # Increased from 15 for more thorough search
+    max_steps = (
+        60  # Increased from 50 for very long hospital stays (2+ months of documents)
+    )
     temperature = 0.2
 
     def __init__(self, doctor_specialty: str = None):
