@@ -20,6 +20,7 @@ from flows import (
     StewardFlow,
     StewardSummaryFlow,
 )
+from flows.baptist_batch_insurance import BaptistBatchInsuranceFlow
 
 from .models import (
     StartRPARequest,
@@ -31,6 +32,7 @@ from .models import (
     QueueStatusResponse,
     HospitalType,
     BatchSummaryRequest,
+    BatchInsuranceRequest,
 )
 from flows.batch_summary_registry import get_batch_summary_flow, is_hospital_supported
 
@@ -514,4 +516,67 @@ async def start_batch_summary_flow(
     return {
         "success": True,
         "message": f"Batch summary started for {len(body.patient_names)} patients at {hospital}",
+    }
+
+
+@router.post("/start-batch-insurance-flow", response_model=StartRPAResponse)
+async def start_batch_insurance_flow(
+    body: BatchInsuranceRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start a batch patient insurance extraction flow.
+
+    Processes multiple patients from the same hospital in one session,
+    extracting insurance information via Provider Face Sheet PDF.
+    Currently only supports BAPTIST.
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    hospital = body.hospital_type.value
+
+    # Currently only BAPTIST is supported for insurance extraction
+    if hospital != "BAPTIST":
+        return {
+            "success": False,
+            "message": f"Batch insurance not supported for: {hospital}. Currently only BAPTIST is supported.",
+        }
+
+    logger.info(
+        f"[BATCH-INSURANCE] Starting for {len(body.patient_names)} patients at {hospital}"
+    )
+    logger.info(f"[BATCH-INSURANCE] Patients: {body.patient_names}")
+
+    # Create Baptist batch insurance flow
+    flow = BaptistBatchInsuranceFlow()
+    logger.info(f"[BATCH-INSURANCE] Flow instance obtained: {flow.__class__.__name__}")
+
+    # Convert credentials if present
+    credentials = None
+    if body.credentials:
+        credentials = [c.model_dump() for c in body.credentials]
+
+    logger.info(f"[BATCH-INSURANCE] Adding flow.run to background tasks...")
+
+    # Run in background
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        credentials,
+        patient_names=body.patient_names,
+        hospital_type=hospital,
+    )
+
+    logger.info(f"[BATCH-INSURANCE] Background task queued, returning response")
+
+    return {
+        "success": True,
+        "message": f"Batch insurance started for {len(body.patient_names)} patients at {hospital}",
     }

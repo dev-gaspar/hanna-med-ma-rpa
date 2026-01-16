@@ -391,6 +391,7 @@ class BaptistSummaryFlow(BaseFlow):
         pdf_file_element = self.wait_for_element(
             config.get_rpa_setting("images.baptist_report_pdf"),
             timeout=10,
+            confidence=0.95,
             description="Baptist Report PDF file",
         )
         if pdf_file_element:
@@ -420,14 +421,14 @@ class BaptistSummaryFlow(BaseFlow):
             "[BAPTIST SUMMARY] Step 8: Pressing Enter to confirm replacement..."
         )
         pydirectinput.press("enter")
-        stoppable_sleep(3)  # Wait for PDF to be saved
+        stoppable_sleep(5)  # Wait for PDF to be saved (increased from 3s)
 
         # Step 9: Extract text from PDF
         logger.info("[BAPTIST SUMMARY] Step 9: Extracting text from PDF...")
         self._extract_pdf_content()
 
     def _extract_pdf_content(self):
-        """Extract text content from the saved PDF file."""
+        """Extract text content from the saved PDF file with retry logic."""
         try:
             import PyPDF2
 
@@ -438,6 +439,22 @@ class BaptistSummaryFlow(BaseFlow):
             if not os.path.exists(pdf_path):
                 logger.error(f"[BAPTIST SUMMARY] PDF not found at: {pdf_path}")
                 self.copied_content = "[ERROR] PDF file not found on desktop"
+                return
+
+            # Retry loop: wait for PDF to have content (max 5 attempts, 1s each)
+            max_attempts = 5
+            for attempt in range(1, max_attempts + 1):
+                file_size = os.path.getsize(pdf_path)
+                if file_size > 0:
+                    logger.info(f"[BAPTIST SUMMARY] PDF ready ({file_size} bytes)")
+                    break
+                logger.warning(
+                    f"[BAPTIST SUMMARY] PDF empty, waiting... (attempt {attempt}/{max_attempts})"
+                )
+                stoppable_sleep(1)
+            else:
+                logger.error("[BAPTIST SUMMARY] PDF still empty after max attempts")
+                self.copied_content = "[ERROR] PDF file is empty after waiting"
                 return
 
             # Read PDF and extract text

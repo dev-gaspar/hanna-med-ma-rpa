@@ -372,6 +372,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
         pdf_file_element = self.wait_for_element(
             config.get_rpa_setting("images.baptist_report_pdf"),
             timeout=10,
+            confidence=0.95,
             description="Baptist Report PDF file",
         )
         if pdf_file_element:
@@ -388,13 +389,13 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
 
         # Confirm replacement
         pydirectinput.press("enter")
-        stoppable_sleep(3)  # Wait for PDF to save
+        stoppable_sleep(5)  # Wait for PDF to save (increased from 3s)
 
         # Extract text from PDF
         return self._extract_pdf_content()
 
     def _extract_pdf_content(self) -> str:
-        """Extract text from saved PDF."""
+        """Extract text from saved PDF with retry logic."""
         try:
             import PyPDF2
 
@@ -404,6 +405,21 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
             if not os.path.exists(pdf_path):
                 logger.error(f"[BAPTIST-BATCH] PDF not found: {pdf_path}")
                 return "[ERROR] PDF file not found"
+
+            # Retry loop: wait for PDF to have content (max 5 attempts, 1s each)
+            max_attempts = 5
+            for attempt in range(1, max_attempts + 1):
+                file_size = os.path.getsize(pdf_path)
+                if file_size > 0:
+                    logger.info(f"[BAPTIST-BATCH] PDF ready ({file_size} bytes)")
+                    break
+                logger.warning(
+                    f"[BAPTIST-BATCH] PDF empty, waiting... (attempt {attempt}/{max_attempts})"
+                )
+                stoppable_sleep(1)
+            else:
+                logger.error("[BAPTIST-BATCH] PDF still empty after max attempts")
+                return "[ERROR] PDF file is empty after waiting"
 
             with open(pdf_path, "rb") as pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)

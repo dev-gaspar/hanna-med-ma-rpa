@@ -4,11 +4,9 @@
 	"n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
 	"n8n_batch_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-batch-patient-summary",
 	"n8n_insurance_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-insurance",
+	"n8n_batch_insurance_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-batch-patient-insurance",
 	"screen_resolution": "1366x768",
-	"available_resolutions": [
-		"1366x768",
-		"1024x768"
-	],
+	"available_resolutions": ["1366x768", "1024x768"],
 	"aws": {
 		"access_key_id": "${AWS_ACCESS_KEY_ID}",
 		"secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
@@ -218,70 +216,34 @@
 	"roi_definitions": {
 		"jackson": {
 			"1024x768": {
-				"patient_finder": [
-					"patient_list"
-				],
-				"report_finder": [
-					"notes_tree",
-					"report_content"
-				]
+				"patient_finder": ["patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
 			},
 			"1366x768": {
-				"patient_finder": [
-					"patient_list"
-				],
-				"report_finder": [
-					"notes_tree",
-					"report_content"
-				]
+				"patient_finder": ["patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
 			}
 		},
 		"baptist": {
 			"1024x768": {
-				"patient_finder": [
-					"hospital_tabs",
-					"patient_list"
-				],
-				"report_finder": [
-					"notes_tree",
-					"report_content"
-				]
+				"patient_finder": ["hospital_tabs", "patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
 			},
 			"1366x768": {
-				"patient_finder": [
-					"hospital_tabs",
-					"patient_list"
-				],
-				"report_finder": [
-					"notes_tree",
-					"report_content"
-				]
+				"patient_finder": ["hospital_tabs", "patient_list"],
+				"report_finder": ["notes_tree", "report_content"]
 			}
 		},
 		"steward": {
 			"1024x768": {
-				"patient_finder": [
-					"patient_list"
-				],
-				"reason_finder": [
-					"orders_list"
-				],
-				"report_finder": [
-					"document_list",
-					"document_content"
-				]
+				"patient_finder": ["patient_list"],
+				"reason_finder": ["orders_list"],
+				"report_finder": ["document_list", "document_content"]
 			},
 			"1366x768": {
-				"patient_finder": [
-					"patient_list"
-				],
-				"reason_finder": [
-					"orders_list"
-				],
-				"report_finder": [
-					"document_list",
-					"document_content"
-				]
+				"patient_finder": ["patient_list"],
+				"reason_finder": ["orders_list"],
+				"report_finder": ["document_list", "document_content"]
 			}
 		}
 	},

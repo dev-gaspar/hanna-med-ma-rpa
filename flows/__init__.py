@@ -6,6 +6,7 @@ from .base_flow import BaseFlow
 from .baptist import BaptistFlow
 from .baptist_summary import BaptistSummaryFlow
 from .baptist_insurance import BaptistInsuranceFlow
+from .baptist_batch_insurance import BaptistBatchInsuranceFlow
 from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .steward import StewardFlow
@@ -27,6 +28,7 @@ FLOW_REGISTRY = {
     "baptist": BaptistFlow,
     "baptist_summary": BaptistSummaryFlow,
     "baptist_insurance": BaptistInsuranceFlow,
+    "baptist_batch_insurance": BaptistBatchInsuranceFlow,
     "jackson": JacksonFlow,
     "jackson_summary": JacksonSummaryFlow,
     "steward": StewardFlow,
@@ -64,6 +66,7 @@ __all__ = [
     "BaptistFlow",
     "BaptistSummaryFlow",
     "BaptistInsuranceFlow",
+    "BaptistBatchInsuranceFlow",
     "JacksonFlow",
     "JacksonSummaryFlow",
     "StewardFlow",

@@ -114,3 +114,16 @@ class BatchSummaryRequest(BaseModel):
     patient_names: List[str]  # Array of patient names to search
     doctor_specialty: Optional[str] = None  # Doctor's specialty to guide report search
     credentials: Optional[List[CredentialItem]] = None
+
+
+class BatchInsuranceRequest(BaseModel):
+    """Request model for batch patient insurance flow."""
+
+    execution_id: str
+    sender: str
+    instance: str
+    trigger_type: str
+    doctor_name: Optional[str] = None
+    hospital_type: HospitalType  # Currently only BAPTIST supported
+    patient_names: List[str]  # Array of patient names to search
+    credentials: Optional[List[CredentialItem]] = None
