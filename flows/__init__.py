@@ -5,6 +5,7 @@ Flows module - Hospital-specific RPA flows.
 from .base_flow import BaseFlow
 from .baptist import BaptistFlow
 from .baptist_summary import BaptistSummaryFlow
+from .baptist_insurance import BaptistInsuranceFlow
 from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .steward import StewardFlow
@@ -25,6 +26,7 @@ from .steward_batch_summary import StewardBatchSummaryFlow
 FLOW_REGISTRY = {
     "baptist": BaptistFlow,
     "baptist_summary": BaptistSummaryFlow,
+    "baptist_insurance": BaptistInsuranceFlow,
     "jackson": JacksonFlow,
     "jackson_summary": JacksonSummaryFlow,
     "steward": StewardFlow,
@@ -61,6 +63,7 @@ __all__ = [
     "BaseFlow",
     "BaptistFlow",
     "BaptistSummaryFlow",
+    "BaptistInsuranceFlow",
     "JacksonFlow",
     "JacksonSummaryFlow",
     "StewardFlow",

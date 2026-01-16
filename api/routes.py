@@ -14,6 +14,7 @@ from core.rpa_engine import (
 from flows import (
     BaptistFlow,
     BaptistSummaryFlow,
+    BaptistInsuranceFlow,
     JacksonFlow,
     JacksonSummaryFlow,
     StewardFlow,
@@ -256,6 +257,50 @@ async def start_baptist_summary_flow(
     }
 
 
+@router.post("/start-baptist-insurance-flow", response_model=StartRPAResponse)
+async def start_baptist_insurance_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Baptist Insurance flow - extract patient insurance from Face Sheet.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list
+    2. Uses agentic PatientFinder to locate the patient
+    3. Clicks Provider Face Sheet to extract insurance info via PDF
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Baptist Insurance)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run flow in background
+    flow = BaptistInsuranceFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        patient_name=body.patient_name,
+    )
+
+    return {
+        "success": True,
+        "message": f"Baptist insurance flow started for patient: {body.patient_name}",
+    }
+
+
 @router.post("/start-steward-summary-flow", response_model=StartRPAResponse)
 async def start_steward_summary_flow(
     body: StartSummaryRequest, background_tasks: BackgroundTasks
@@ -428,6 +473,7 @@ async def start_batch_summary_flow(
 
     if not is_hospital_supported(hospital):
         from flows.batch_summary_registry import get_available_hospitals
+
         return {
             "success": False,
             "message": f"Batch summary not supported for: {hospital}. Supported: {get_available_hospitals()}",

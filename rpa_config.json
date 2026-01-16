@@ -3,6 +3,7 @@
 	"n8n_error_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-error",
 	"n8n_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-summary",
 	"n8n_batch_summary_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-batch-patient-summary",
+	"n8n_insurance_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-insurance",
 	"screen_resolution": "1366x768",
 	"available_resolutions": [
 		"1366x768",
@@ -74,6 +75,8 @@
 		"baptist_patient_tab_2": "images/{resolution}/baptist/hospital_tab_2_fullscreen.png",
 		"baptist_patient_tab_3": "images/{resolution}/baptist/hospital_tab_3_fullscreen.png",
 		"baptist_patient_tab_4": "images/{resolution}/baptist/hospital_tab_4_fullscreen.png",
+		"baptist_provider_face_sheet": "images/{resolution}/baptist/provider_face_sheet.png",
+		"baptist_insurance_btn": "images/{resolution}/baptist/baptist_insurance.png",
 		"jackson_tab": "images/{resolution}/jackson/step1_tab_jackson.png",
 		"jackson_powered": "images/{resolution}/jackson/step2_powered_jackson.png",
 		"jackson_open_download": "images/{resolution}/jackson/step3_open_download_powered.png",

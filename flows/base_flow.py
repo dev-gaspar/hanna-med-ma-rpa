@@ -31,6 +31,7 @@ class BaseFlow(RPABotBase, ABC):
     N8N_LIST_WEBHOOK_URL = config.get_rpa_setting("n8n_list_webhook_url")
     N8N_ERROR_WEBHOOK_URL = config.get_rpa_setting("n8n_error_webhook_url")
     N8N_SUMMARY_WEBHOOK_URL = config.get_rpa_setting("n8n_summary_webhook_url")
+    N8N_INSURANCE_WEBHOOK_URL = config.get_rpa_setting("n8n_insurance_webhook_url")
 
     def __init__(self):
         super().__init__()
@@ -490,4 +491,9 @@ class BaseFlow(RPABotBase, ABC):
     def _send_to_summary_webhook_n8n(self, data):
         """Send data to the n8n summary webhook (patient summaries)."""
         response = requests.post(self.N8N_SUMMARY_WEBHOOK_URL, json=data)
+        return response
+
+    def _send_to_insurance_webhook_n8n(self, data):
+        """Send data to the n8n insurance webhook (patient insurance info)."""
+        response = requests.post(self.N8N_INSURANCE_WEBHOOK_URL, json=data)
         return response
