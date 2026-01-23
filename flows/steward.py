@@ -400,15 +400,47 @@ class StewardFlow(BaseFlow):
             ),
         }
 
+    def _handle_steward_message(self, location):
+        """Handler to dismiss the informative message popup.
+
+        This popup sometimes appears before steward_load_menu_5.
+        Click the OK button to dismiss it and continue.
+        """
+        logger.info("[MESSAGE] Informative message popup detected - dismissing...")
+
+        # Click OK button to dismiss the message
+        ok_btn = self.wait_for_element(
+            config.get_rpa_setting("images.steward_message_ok"),
+            timeout=10,
+            description="Message OK Button",
+        )
+        if ok_btn:
+            self.safe_click(ok_btn, "Message OK")
+            stoppable_sleep(2)
+            logger.info("[MESSAGE] Informative message dismissed")
+        else:
+            logger.warning("[MESSAGE] OK button not found - trying to continue")
+
+    def _get_message_handlers(self):
+        """Get handlers for informative message popup obstacle."""
+        return {
+            config.get_rpa_setting("images.steward_message"): (
+                "Informative Message",
+                self._handle_steward_message,
+            ),
+        }
+
     def step_6_navigate_menu_5(self):
-        """Wait for menu to load and navigate (step 5)."""
+        """Wait for menu to load and navigate (step 5), handling message popup."""
         self.set_step("STEP_6_MENU_5")
         logger.info("[STEP 6] Navigating menu (step 5)")
 
-        menu = self.wait_for_element(
+        # Use robust_wait to handle informative message popup if it appears
+        menu = self.robust_wait_for_element(
             config.get_rpa_setting("images.steward_load_menu_5"),
+            target_description="Menu (step 5)",
+            handlers=self._get_message_handlers(),
             timeout=config.get_timeout("steward.menu"),
-            description="Menu (step 5)",
         )
         if not menu:
             raise Exception("Menu (step 5) not found")

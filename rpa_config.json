@@ -6,7 +6,10 @@
 	"n8n_insurance_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-patient-insurance",
 	"n8n_batch_insurance_webhook_url": "https://n8n-dev.hannamedma.com/webhook/rpa-batch-patient-insurance",
 	"screen_resolution": "1366x768",
-	"available_resolutions": ["1366x768", "1024x768"],
+	"available_resolutions": [
+		"1366x768",
+		"1024x768"
+	],
 	"aws": {
 		"access_key_id": "${AWS_ACCESS_KEY_ID}",
 		"secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
@@ -99,6 +102,9 @@
 		"jackson_same_name_alert_ok": "images/{resolution}/jackson/same_name_alert_ok.png",
 		"jackson_assign_relationship_ok": "images/{resolution}/jackson/assign_relationship_ok.png",
 		"jackson_patient_list_header": "images/{resolution}/jackson/patient_list_header.png",
+		"jackson_more": "images/{resolution}/jackson/more.png",
+		"jackson_insurance_information": "images/{resolution}/jackson/insurance_information.png",
+		"jackson_insurance_guarantors": "images/{resolution}/jackson/insurance_guarantors.png",
 		"steward_tab": "images/{resolution}/steward/step1_tab_steward.png",
 		"steward_favorite": "images/{resolution}/steward/step2_favorite_steward.png",
 		"steward_meditech": "images/{resolution}/steward/step3_meditech.png",
@@ -142,7 +148,15 @@
 		"steward_tab_document_btn": "images/{resolution}/steward/step11_tab_document_btn.png",
 		"steward_close_tab_document_btn": "images/{resolution}/steward/step12_close_tab_document_btn.png",
 		"steward_close_modal_document_detail": "images/{resolution}/steward/step13_close_modal_document_detail.png",
-		"steward_rounds_patients_view": "images/{resolution}/steward/rounds_patients_view.png"
+		"steward_rounds_patients_view": "images/{resolution}/steward/rounds_patients_view.png",
+		"steward_insurance_tab_administrative": "images/{resolution}/steward/insurance_tab_administrative.png",
+		"steward_insurance_administrative": "images/{resolution}/steward/insurance_administrative.png",
+		"steward_insurance_demographics": "images/{resolution}/steward/insurance_demographics.png",
+		"steward_insurance_insurance": "images/{resolution}/steward/insurance_insurance.png",
+		"steward_insurance_general": "images/{resolution}/steward/insurance_general.png",
+		"steward_insurance_general_selected": "images/{resolution}/steward/insurance_general_selected.png",
+		"steward_message": "images/{resolution}/steward/message.png",
+		"steward_message_ok": "images/{resolution}/steward/message_ok.png"
 	},
 	"timeouts": {
 		"default": 60,
@@ -216,34 +230,70 @@
 	"roi_definitions": {
 		"jackson": {
 			"1024x768": {
-				"patient_finder": ["patient_list"],
-				"report_finder": ["notes_tree", "report_content"]
+				"patient_finder": [
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
 			},
 			"1366x768": {
-				"patient_finder": ["patient_list"],
-				"report_finder": ["notes_tree", "report_content"]
+				"patient_finder": [
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
 			}
 		},
 		"baptist": {
 			"1024x768": {
-				"patient_finder": ["hospital_tabs", "patient_list"],
-				"report_finder": ["notes_tree", "report_content"]
+				"patient_finder": [
+					"hospital_tabs",
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
 			},
 			"1366x768": {
-				"patient_finder": ["hospital_tabs", "patient_list"],
-				"report_finder": ["notes_tree", "report_content"]
+				"patient_finder": [
+					"hospital_tabs",
+					"patient_list"
+				],
+				"report_finder": [
+					"notes_tree",
+					"report_content"
+				]
 			}
 		},
 		"steward": {
 			"1024x768": {
-				"patient_finder": ["patient_list"],
-				"reason_finder": ["orders_list"],
-				"report_finder": ["document_list", "document_content"]
+				"patient_finder": [
+					"patient_list"
+				],
+				"reason_finder": [
+					"orders_list"
+				],
+				"report_finder": [
+					"document_list",
+					"document_content"
+				]
 			},
 			"1366x768": {
-				"patient_finder": ["patient_list"],
-				"reason_finder": ["orders_list"],
-				"report_finder": ["document_list", "document_content"]
+				"patient_finder": [
+					"patient_list"
+				],
+				"reason_finder": [
+					"orders_list"
+				],
+				"report_finder": [
+					"document_list",
+					"document_content"
+				]
 			}
 		}
 	},

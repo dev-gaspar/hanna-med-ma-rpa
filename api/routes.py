@@ -17,8 +17,10 @@ from flows import (
     BaptistInsuranceFlow,
     JacksonFlow,
     JacksonSummaryFlow,
+    JacksonInsuranceFlow,
     StewardFlow,
     StewardSummaryFlow,
+    StewardInsuranceFlow,
 )
 from flows.baptist_batch_insurance import BaptistBatchInsuranceFlow
 
@@ -166,6 +168,50 @@ async def start_steward_rpa_flow(
     return {
         "success": True,
         "message": "Steward list recovery started",
+    }
+
+
+@router.post("/start-jackson-insurance-flow", response_model=StartRPAResponse)
+async def start_jackson_insurance_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Jackson Insurance flow - extract patient insurance info.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list
+    2. Uses agentic PatientFinder to locate the patient
+    3. Mocks insurance extraction (Phase 3)
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Jackson Insurance)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run flow in background
+    flow = JacksonInsuranceFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        patient_name=body.patient_name,
+    )
+
+    return {
+        "success": True,
+        "message": f"Jackson insurance flow started for patient: {body.patient_name}",
     }
 
 
@@ -345,6 +391,50 @@ async def start_steward_summary_flow(
     return {
         "success": True,
         "message": f"Steward patient summary flow started for patient: {body.patient_name}",
+    }
+
+
+@router.post("/start-steward-insurance-flow", response_model=StartRPAResponse)
+async def start_steward_insurance_flow(
+    body: StartSummaryRequest, background_tasks: BackgroundTasks
+):
+    """
+    Start Steward Insurance flow - extract patient insurance info.
+
+    This flow:
+    1. Uses traditional RPA to navigate to the patient list (Rounds Patients)
+    2. Uses agentic PatientFinder to locate the patient
+    3. Performs insurance extraction RPA actions (TODO)
+    """
+    if rpa_state["status"] == "running":
+        return {
+            "success": False,
+            "message": f"RPA is already running with ID: {rpa_state['execution_id']}",
+        }
+
+    print(f"Execution ID: {body.execution_id}")
+    print(f"Sender: {body.sender}")
+    print(f"Instance: {body.instance}")
+    print(f"Trigger Type: {body.trigger_type} (Steward Insurance)")
+    print(f"Doctor Name: {body.doctor_name}")
+    print(f"Patient Name: {body.patient_name}")
+
+    # Create and run flow in background
+    flow = StewardInsuranceFlow()
+    background_tasks.add_task(
+        flow.run,
+        body.execution_id,
+        body.sender,
+        body.instance,
+        body.trigger_type,
+        body.doctor_name,
+        body.credentials,
+        patient_name=body.patient_name,
+    )
+
+    return {
+        "success": True,
+        "message": f"Steward insurance flow started for patient: {body.patient_name}",
     }
 
 

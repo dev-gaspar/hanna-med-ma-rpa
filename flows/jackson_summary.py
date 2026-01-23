@@ -128,12 +128,16 @@ class JacksonSummaryFlow(BaseFlow):
             self._click_normalscreen()
             # Only patient list open, use simple cleanup (1 Alt+F4)
             self._cleanup_and_return_to_lobby()
-            return {
+
+            # Notify webhook that patient was not found
+            result = {
                 "patient_name": self.patient_name,
                 "content": None,
                 "patient_found": False,
                 "error": f"Patient '{self.patient_name}' not found in patient list",
             }
+            self.notify_completion(result)
+            return result
 
         # Handle agent error (failed or ran out of steps)
         if phase2_status == "error":
@@ -385,11 +389,15 @@ class JacksonSummaryFlow(BaseFlow):
         """
         Cleanup Jackson EMR session when patient detail is open.
         Performs TWO close actions: first patient detail, then patient list.
+        Uses visual validation to confirm we're at patient list before second close.
         Used when: Agent failed during ReportFinder phase (patient detail already open)
         """
         logger.info("[JACKSON SUMMARY] Performing cleanup (patient detail + list)...")
         try:
             screen_w, screen_h = pyautogui.size()
+            patient_list_header_img = config.get_rpa_setting(
+                "images.jackson_patient_list_header"
+            )
 
             # Click on screen center to ensure window has focus
             pyautogui.click(screen_w // 2, screen_h // 2)
@@ -403,10 +411,48 @@ class JacksonSummaryFlow(BaseFlow):
             stoppable_sleep(0.1)
             pydirectinput.keyUp("alt")
 
-            # Wait for the window to close
-            stoppable_sleep(5)
+            # Wait for patient list header to be visible (visual validation)
+            logger.info(
+                "[JACKSON SUMMARY] Waiting for patient list header (max 15s)..."
+            )
+            header_found = self.wait_for_element(
+                patient_list_header_img,
+                timeout=15,
+                description="Patient List Header",
+            )
 
-            # Click on screen center again to focus the next window
+            if header_found:
+                logger.info("[JACKSON SUMMARY] OK - Patient list header detected")
+            else:
+                logger.warning(
+                    "[JACKSON SUMMARY] FAIL - Patient list header NOT detected after 15s"
+                )
+                logger.info("[JACKSON SUMMARY] Retrying Alt+F4...")
+                # Click center to ensure focus
+                pyautogui.click(screen_w // 2, screen_h // 2)
+                stoppable_sleep(0.5)
+
+                # Retry Alt+F4
+                pydirectinput.keyDown("alt")
+                stoppable_sleep(0.1)
+                pydirectinput.press("f4")
+                stoppable_sleep(0.1)
+                pydirectinput.keyUp("alt")
+
+                # Wait for patient list header again
+                header_found = self.wait_for_element(
+                    patient_list_header_img,
+                    timeout=15,
+                    description="Patient List Header (retry)",
+                )
+                if header_found:
+                    logger.info(
+                        "[JACKSON SUMMARY] OK - Patient list header detected after retry"
+                    )
+                else:
+                    logger.warning("[JACKSON SUMMARY] FAIL - Continuing anyway...")
+
+            # Click on screen center to focus the patient list window
             pyautogui.click(screen_w // 2, screen_h // 2)
             stoppable_sleep(0.5)
 
@@ -503,17 +549,23 @@ class JacksonSummaryFlow(BaseFlow):
     def _phase3_close_and_cleanup(self):
         """
         Phase 3c: Close Cerner patient detail and patient list windows, then return to VDI.
+        Uses visual validation to confirm we're at patient list before second close.
 
         Flow:
         1. Close patient detail view (first close click)
-        2. Check if patient list is visible, if so close it too
-        3. Navigate to VDI tab
+        2. Wait for patient list header to be visible
+        3. Close patient list
+        4. Navigate to VDI tab
         """
         self.set_step("PHASE3_CLOSE_AND_CLEANUP")
         logger.info("[JACKSON SUMMARY] Closing patient detail...")
 
         # Click on screen center to ensure window has focus
         screen_w, screen_h = pyautogui.size()
+        patient_list_header_img = config.get_rpa_setting(
+            "images.jackson_patient_list_header"
+        )
+
         pyautogui.click(screen_w // 2, screen_h // 2)
         stoppable_sleep(0.5)
 
@@ -525,10 +577,46 @@ class JacksonSummaryFlow(BaseFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait for the window to close
-        stoppable_sleep(5)
+        # Wait for patient list header to be visible (visual validation)
+        logger.info("[JACKSON SUMMARY] Waiting for patient list header (max 15s)...")
+        header_found = self.wait_for_element(
+            patient_list_header_img,
+            timeout=15,
+            description="Patient List Header",
+        )
 
-        # Click on screen center again to focus the next window
+        if header_found:
+            logger.info("[JACKSON SUMMARY] OK - Patient list header detected")
+        else:
+            logger.warning(
+                "[JACKSON SUMMARY] FAIL - Patient list header NOT detected after 15s"
+            )
+            logger.info("[JACKSON SUMMARY] Retrying Alt+F4...")
+            # Click center to ensure focus
+            pyautogui.click(screen_w // 2, screen_h // 2)
+            stoppable_sleep(0.5)
+
+            # Retry Alt+F4
+            pydirectinput.keyDown("alt")
+            stoppable_sleep(0.1)
+            pydirectinput.press("f4")
+            stoppable_sleep(0.1)
+            pydirectinput.keyUp("alt")
+
+            # Wait for patient list header again
+            header_found = self.wait_for_element(
+                patient_list_header_img,
+                timeout=15,
+                description="Patient List Header (retry)",
+            )
+            if header_found:
+                logger.info(
+                    "[JACKSON SUMMARY] OK - Patient list header detected after retry"
+                )
+            else:
+                logger.warning("[JACKSON SUMMARY] FAIL - Continuing anyway...")
+
+        # Click on screen center to focus the patient list window
         pyautogui.click(screen_w // 2, screen_h // 2)
         stoppable_sleep(0.5)
 

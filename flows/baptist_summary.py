@@ -121,12 +121,16 @@ class BaptistSummaryFlow(BaseFlow):
             )
             self._click_normalscreen()
             self._cleanup_and_return_to_lobby()
-            return {
+
+            # Notify webhook that patient was not found
+            result = {
                 "patient_name": self.patient_name,
                 "content": None,
                 "patient_found": False,
                 "error": f"Patient '{self.patient_name}' not found in patient list",
             }
+            self.notify_completion(result)
+            return result
 
         # Handle agent error (failed or ran out of steps)
         if phase2_status == "error":

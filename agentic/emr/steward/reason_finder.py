@@ -121,9 +121,11 @@ Phase B - Extract Reason:
 
 1. All category sections are already expanded - orders are visible directly
 2. After clicking a Consult order, details appear BELOW the order row
-3. Look for "Comment:" label followed by the reason text
+3. Look for "Comment:" or "Reason For Exam:" label followed by the reason text
 4. The reason may span multiple lines - capture the full text
 5. Use "wait" ONCE after clicking to let the UI update
+6. CRITICAL: If after clicking, the Comment/Reason is NOT visible, use "scroll_down" to reveal the expanded details below
+7. NEVER click the same element twice in a row - if you already clicked it, use scroll_down or wait instead
 """
 
 

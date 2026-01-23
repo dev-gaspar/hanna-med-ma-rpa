@@ -134,13 +134,17 @@ class StewardSummaryFlow(BaseFlow):
                 f"[STEWARD SUMMARY] Patient '{self.patient_name}' NOT FOUND - cleaning up..."
             )
             self._cleanup_and_return_to_lobby()
-            return {
+
+            # Notify webhook that patient was not found
+            result = {
                 "patient_name": self.patient_name,
                 "content": None,
                 "patient_found": False,
                 "reason_for_exam": None,
                 "error": f"Patient '{self.patient_name}' not found in patient list",
             }
+            self.notify_completion(result)
+            return result
 
         # Handle agent error
         if phase2_status == "error":
