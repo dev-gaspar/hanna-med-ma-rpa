@@ -10,9 +10,11 @@ from .baptist_batch_insurance import BaptistBatchInsuranceFlow
 from .jackson import JacksonFlow
 from .jackson_summary import JacksonSummaryFlow
 from .jackson_insurance import JacksonInsuranceFlow
+from .jackson_batch_insurance import JacksonBatchInsuranceFlow
 from .steward import StewardFlow
 from .steward_summary import StewardSummaryFlow
 from .steward_insurance import StewardInsuranceFlow
+from .steward_batch_insurance import StewardBatchInsuranceFlow
 
 # Batch summary flows
 from .base_batch_summary import BaseBatchSummaryFlow
@@ -39,6 +41,9 @@ FLOW_REGISTRY = {
     "steward_insurance": StewardInsuranceFlow,
     # Batch summaries
     "jackson_batch_summary": JacksonBatchSummaryFlow,
+    # Batch insurance
+    "jackson_batch_insurance": JacksonBatchInsuranceFlow,
+    "steward_batch_insurance": StewardBatchInsuranceFlow,
     "baptist_batch_summary": BaptistBatchSummaryFlow,
     "steward_batch_summary": StewardBatchSummaryFlow,
 }
@@ -74,9 +79,11 @@ __all__ = [
     "JacksonFlow",
     "JacksonSummaryFlow",
     "JacksonInsuranceFlow",
+    "JacksonBatchInsuranceFlow",
     "StewardFlow",
     "StewardSummaryFlow",
     "StewardInsuranceFlow",
+    "StewardBatchInsuranceFlow",
     "BaseBatchSummaryFlow",
     "JacksonBatchSummaryFlow",
     "BaptistBatchSummaryFlow",

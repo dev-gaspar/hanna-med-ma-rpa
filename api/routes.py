@@ -23,6 +23,8 @@ from flows import (
     StewardInsuranceFlow,
 )
 from flows.baptist_batch_insurance import BaptistBatchInsuranceFlow
+from flows.jackson_batch_insurance import JacksonBatchInsuranceFlow
+from flows.steward_batch_insurance import StewardBatchInsuranceFlow
 
 from .models import (
     StartRPARequest,
@@ -617,8 +619,8 @@ async def start_batch_insurance_flow(
     Start a batch patient insurance extraction flow.
 
     Processes multiple patients from the same hospital in one session,
-    extracting insurance information via Provider Face Sheet PDF.
-    Currently only supports BAPTIST.
+    extracting insurance information.
+    Supports BAPTIST, JACKSON, and STEWARD.
     """
     if rpa_state["status"] == "running":
         return {
@@ -628,11 +630,17 @@ async def start_batch_insurance_flow(
 
     hospital = body.hospital_type.value
 
-    # Currently only BAPTIST is supported for insurance extraction
-    if hospital != "BAPTIST":
+    # Batch insurance flow selector
+    batch_insurance_flows = {
+        "BAPTIST": BaptistBatchInsuranceFlow,
+        "JACKSON": JacksonBatchInsuranceFlow,
+        "STEWARD": StewardBatchInsuranceFlow,
+    }
+
+    if hospital not in batch_insurance_flows:
         return {
             "success": False,
-            "message": f"Batch insurance not supported for: {hospital}. Currently only BAPTIST is supported.",
+            "message": f"Batch insurance not supported for: {hospital}. Supported: {list(batch_insurance_flows.keys())}",
         }
 
     logger.info(
@@ -640,8 +648,9 @@ async def start_batch_insurance_flow(
     )
     logger.info(f"[BATCH-INSURANCE] Patients: {body.patient_names}")
 
-    # Create Baptist batch insurance flow
-    flow = BaptistBatchInsuranceFlow()
+    # Create appropriate batch insurance flow
+    flow_class = batch_insurance_flows[hospital]
+    flow = flow_class()
     logger.info(f"[BATCH-INSURANCE] Flow instance obtained: {flow.__class__.__name__}")
 
     # Convert credentials if present

@@ -299,33 +299,50 @@ class StewardInsuranceFlow(BaseFlow):
         self.safe_click(location, "Demographics")
         stoppable_sleep(2)
 
-        # Step 4: Click Insurance
+        # Step 4 & 5: Click Insurance and Verify with General (Retry Logic)
         logger.info("[PHASE 3] Step 4: Clicking Insurance...")
         insurance_img = config.get_rpa_setting("images.steward_insurance_insurance")
-        location = self.wait_for_element(
-            insurance_img,
-            timeout=15,
-            confidence=0.8,
-            description="Insurance",
-        )
-        if not location:
-            raise Exception("Insurance not found")
-        self.safe_click(location, "Insurance")
-        stoppable_sleep(2)
-
-        # Step 5: Click General to focus text area
-        logger.info("[PHASE 3] Step 5: Clicking General to focus...")
         general_img = config.get_rpa_setting("images.steward_insurance_general")
-        location = self.wait_for_element(
-            general_img,
-            timeout=15,
-            confidence=0.8,
-            description="General",
-        )
-        if not location:
-            raise Exception("General not found")
-        self.safe_click(location, "General")
-        stoppable_sleep(2)
+
+        max_retries = 1
+        for attempt in range(max_retries + 1):
+            # Click Insurance
+            location = self.wait_for_element(
+                insurance_img,
+                timeout=15,
+                confidence=0.8,
+                description="Insurance",
+            )
+            if not location:
+                raise Exception("Insurance button not found")
+            self.safe_click(location, "Insurance")
+            stoppable_sleep(2)
+
+            # Check for General (Verification)
+            logger.info(
+                f"[PHASE 3] Step 5: Waiting for General (Attempt {attempt+1})..."
+            )
+            # Generous timeout as requested to avoid false negatives
+            location = self.wait_for_element(
+                general_img,
+                timeout=20,
+                confidence=0.8,
+                description="General",
+            )
+
+            if location:
+                # Found it! Click to focus and break loop
+                logger.info("[PHASE 3] General tab found, clicking to focus...")
+                self.safe_click(location, "General")
+                stoppable_sleep(2)
+                break
+            else:
+                if attempt < max_retries:
+                    logger.warning(
+                        "[PHASE 3] General tab not found, retrying Insurance click..."
+                    )
+                else:
+                    raise Exception("General tab not found after retry")
 
         # Step 6: Clear clipboard and Select All + Copy
         logger.info("[PHASE 3] Step 6: Selecting all and copying content...")

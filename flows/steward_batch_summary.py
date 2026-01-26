@@ -129,14 +129,8 @@ class StewardBatchSummaryFlow(BaseBatchSummaryFlow):
                     self.current_content = self.extract_content()
                     logger.info(f"[STEWARD-BATCH] Extracted content for {patient}")
 
-                    # Return to patient list (unless this is the last patient)
-                    if not is_last_patient:
-                        self.return_to_patient_list()
-                    else:
-                        self._patient_detail_open = True
-                        logger.info(
-                            "[STEWARD-BATCH] Last patient - keeping detail open for cleanup"
-                        )
+                    # Return to patient list
+                    self.return_to_patient_list()
                 else:
                     logger.warning(f"[STEWARD-BATCH] Patient not found: {patient}")
 
@@ -431,6 +425,7 @@ class StewardBatchSummaryFlow(BaseBatchSummaryFlow):
 
         max_clicks = 5
         clicks_done = 0
+        screen_w, screen_h = pyautogui.size()
 
         while clicks_done < max_clicks:
             # First check if we're already at the patient list
@@ -453,6 +448,8 @@ class StewardBatchSummaryFlow(BaseBatchSummaryFlow):
                 if close_location:
                     pyautogui.click(pyautogui.center(close_location))
                     clicks_done += 1
+                    # Move mouse away to avoid hover state
+                    pyautogui.moveTo(screen_w // 2, screen_h // 2)
                     logger.info(
                         f"[STEWARD-BATCH] Clicked close meditech ({clicks_done}/{max_clicks})"
                     )
