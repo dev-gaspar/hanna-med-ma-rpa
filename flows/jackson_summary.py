@@ -45,6 +45,7 @@ class JacksonSummaryFlow(BaseFlow):
 
     FLOW_NAME = "Jackson Patient Summary"
     FLOW_TYPE = "jackson_patient_summary"
+    EMR_TYPE = "jackson"  # Required for BaseFlow fullscreen methods
 
     # Webhook URL for the Jackson Summary brain in n8n (for agentic phase)
     JACKSON_SUMMARY_BRAIN_URL = config.get_rpa_setting(
@@ -219,39 +220,7 @@ class JacksonSummaryFlow(BaseFlow):
         # Give time for the patient list to fully load
         stoppable_sleep(3)
 
-    def _click_fullscreen(self):
-        """Click fullscreen button for better visualization during agentic phase."""
-        self.set_step("CLICK_FULLSCREEN")
-        fullscreen_img = config.get_rpa_setting("images.jackson_fullscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[JACKSON SUMMARY] Clicked fullscreen button")
-                stoppable_sleep(1)
-            else:
-                logger.warning(
-                    "[JACKSON SUMMARY] Fullscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[JACKSON SUMMARY] Error clicking fullscreen: {e}")
-
-    def _click_normalscreen(self):
-        """Click normalscreen button to restore view after agentic phase."""
-        self.set_step("CLICK_NORMALSCREEN")
-        normalscreen_img = config.get_rpa_setting("images.jackson_normalscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[JACKSON SUMMARY] Clicked normalscreen button")
-                stoppable_sleep(1)
-            else:
-                logger.warning(
-                    "[JACKSON SUMMARY] Normalscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[JACKSON SUMMARY] Error clicking normalscreen: {e}")
+    # _click_fullscreen and _click_normalscreen inherited from BaseFlow (uses EMR_TYPE)
 
     def _phase2_agentic_find_report(self) -> tuple:
         """
@@ -411,46 +380,25 @@ class JacksonSummaryFlow(BaseFlow):
             stoppable_sleep(0.1)
             pydirectinput.keyUp("alt")
 
-            # Wait for patient list header to be visible (visual validation)
-            logger.info(
-                "[JACKSON SUMMARY] Waiting for patient list header (max 15s)..."
-            )
-            header_found = self.wait_for_element(
+            # Wait 5 seconds for the system to process the close
+            logger.info("[JACKSON SUMMARY] Waiting 5s for system to process close...")
+            stoppable_sleep(5)
+
+            # Use patient wait with multiple attempts (NO additional Alt+F4)
+            header_found = self._wait_for_patient_list_with_patience(
                 patient_list_header_img,
-                timeout=15,
-                description="Patient List Header",
+                max_attempts=3,
+                attempt_timeout=10,
             )
 
             if header_found:
-                logger.info("[JACKSON SUMMARY] OK - Patient list header detected")
+                logger.info("[JACKSON SUMMARY] OK - Patient list confirmed")
             else:
+                # Log warning but do NOT send another Alt+F4
                 logger.warning(
-                    "[JACKSON SUMMARY] FAIL - Patient list header NOT detected after 15s"
+                    "[JACKSON SUMMARY] Patient list header not detected after patience wait. "
+                    "Continuing anyway to avoid race condition."
                 )
-                logger.info("[JACKSON SUMMARY] Retrying Alt+F4...")
-                # Click center to ensure focus
-                pyautogui.click(screen_w // 2, screen_h // 2)
-                stoppable_sleep(0.5)
-
-                # Retry Alt+F4
-                pydirectinput.keyDown("alt")
-                stoppable_sleep(0.1)
-                pydirectinput.press("f4")
-                stoppable_sleep(0.1)
-                pydirectinput.keyUp("alt")
-
-                # Wait for patient list header again
-                header_found = self.wait_for_element(
-                    patient_list_header_img,
-                    timeout=15,
-                    description="Patient List Header (retry)",
-                )
-                if header_found:
-                    logger.info(
-                        "[JACKSON SUMMARY] OK - Patient list header detected after retry"
-                    )
-                else:
-                    logger.warning("[JACKSON SUMMARY] FAIL - Continuing anyway...")
 
             # Click on screen center to focus the patient list window
             pyautogui.click(screen_w // 2, screen_h // 2)
@@ -577,44 +525,25 @@ class JacksonSummaryFlow(BaseFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait for patient list header to be visible (visual validation)
-        logger.info("[JACKSON SUMMARY] Waiting for patient list header (max 15s)...")
-        header_found = self.wait_for_element(
+        # Wait 5 seconds for the system to process the close
+        logger.info("[JACKSON SUMMARY] Waiting 5s for system to process close...")
+        stoppable_sleep(5)
+
+        # Use patient wait with multiple attempts (NO additional Alt+F4)
+        header_found = self._wait_for_patient_list_with_patience(
             patient_list_header_img,
-            timeout=15,
-            description="Patient List Header",
+            max_attempts=3,
+            attempt_timeout=10,
         )
 
         if header_found:
-            logger.info("[JACKSON SUMMARY] OK - Patient list header detected")
+            logger.info("[JACKSON SUMMARY] OK - Patient list confirmed")
         else:
+            # Log warning but do NOT send another Alt+F4
             logger.warning(
-                "[JACKSON SUMMARY] FAIL - Patient list header NOT detected after 15s"
+                "[JACKSON SUMMARY] Patient list header not detected after patience wait. "
+                "Continuing anyway to avoid race condition."
             )
-            logger.info("[JACKSON SUMMARY] Retrying Alt+F4...")
-            # Click center to ensure focus
-            pyautogui.click(screen_w // 2, screen_h // 2)
-            stoppable_sleep(0.5)
-
-            # Retry Alt+F4
-            pydirectinput.keyDown("alt")
-            stoppable_sleep(0.1)
-            pydirectinput.press("f4")
-            stoppable_sleep(0.1)
-            pydirectinput.keyUp("alt")
-
-            # Wait for patient list header again
-            header_found = self.wait_for_element(
-                patient_list_header_img,
-                timeout=15,
-                description="Patient List Header (retry)",
-            )
-            if header_found:
-                logger.info(
-                    "[JACKSON SUMMARY] OK - Patient list header detected after retry"
-                )
-            else:
-                logger.warning("[JACKSON SUMMARY] FAIL - Continuing anyway...")
 
         # Click on screen center to focus the patient list window
         pyautogui.click(screen_w // 2, screen_h // 2)

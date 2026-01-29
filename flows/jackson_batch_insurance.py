@@ -403,7 +403,8 @@ class JacksonBatchInsuranceFlow(BaseFlow):
         """
         Close current patient detail and return to patient list.
         Uses Alt+F4 to close the patient detail view.
-        Uses visual validation to confirm we're back at the patient list.
+        Uses conservative wait (3x10s with center clicks) to confirm we're back.
+        Does NOT retry Alt+F4 to avoid race conditions.
         """
         self.set_step("RETURN_TO_PATIENT_LIST")
         logger.info("[JACKSON-BATCH-INS] Returning to patient list...")
@@ -421,49 +422,29 @@ class JacksonBatchInsuranceFlow(BaseFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait for patient list header to be visible (visual validation)
-        logger.info("[JACKSON-BATCH-INS] Waiting for patient list header (max 15s)...")
+        # Wait 5 seconds for the system to process the close
+        logger.info("[JACKSON-BATCH-INS] Waiting 5s for system to process close...")
+        stoppable_sleep(5)
 
         patient_list_header_img = config.get_rpa_setting(
             "images.jackson_patient_list_header"
         )
 
-        header_found = self.wait_for_element(
+        # Use patient wait with multiple attempts (NO additional Alt+F4)
+        header_found = self._wait_for_patient_list_with_patience(
             patient_list_header_img,
-            timeout=15,
-            description="Patient List Header",
+            max_attempts=3,
+            attempt_timeout=10,
         )
 
         if header_found:
-            logger.info("[JACKSON-BATCH-INS] OK - Patient list header detected")
+            logger.info("[JACKSON-BATCH-INS] OK - Patient list confirmed")
         else:
+            # Log warning but do NOT send another Alt+F4
             logger.warning(
-                "[JACKSON-BATCH-INS] Patient list header NOT detected - retrying Alt+F4..."
+                "[JACKSON-BATCH-INS] Patient list header not detected after patience wait. "
+                "Continuing anyway to avoid race condition."
             )
-            # Retry Alt+F4
-            pyautogui.click(screen_w // 2, screen_h // 2)
-            stoppable_sleep(0.5)
-            pydirectinput.keyDown("alt")
-            stoppable_sleep(0.1)
-            pydirectinput.press("f4")
-            stoppable_sleep(0.1)
-            pydirectinput.keyUp("alt")
-
-            # Wait again
-            header_found = self.wait_for_element(
-                patient_list_header_img,
-                timeout=15,
-                description="Patient List Header (retry)",
-            )
-
-            if header_found:
-                logger.info(
-                    "[JACKSON-BATCH-INS] OK - Patient list header detected after retry"
-                )
-            else:
-                logger.error(
-                    "[JACKSON-BATCH-INS] FAIL - Patient list header still NOT detected"
-                )
 
         self._patient_detail_open = False
         logger.info("[JACKSON-BATCH-INS] Back at patient list")

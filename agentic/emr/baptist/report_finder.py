@@ -46,6 +46,12 @@ When entering Priority 4-5 folders (Consultation or Progress Notes):
 4. If specialty sub-folder NOT FOUND:
    - In Consultation Notes → CLOSE folder, move to Progress Notes
    - In Progress Notes → Accept any Physician Progress Note (most recent first)
+   - CRITICAL: If you see a sub-folder ALSO named "Progress Notes" inside the parent "Progress Notes" folder, IGNORE IT - this is the Nurse notes folder. Only explore it as ABSOLUTE LAST RESORT after exhausting ALL other options
+
+PROGRESS NOTES PRIORITY WITHIN THE FOLDER:
+- FIRST: Look for sub-folder matching doctor's specialty
+- SECOND: Look for "Physician Progress Note" documents (skip anything with "Nurse")
+- ABSOLUTE LAST RESORT: Only check "Progress Notes" sub-folder (Nurse) if nothing else found
 
 FALLBACK DOCUMENTS (when no specialty found):
 When no specialty-specific content is available, these are GOOD alternatives:
@@ -152,8 +158,10 @@ CRITICAL RULES
 WHAT TO SKIP
 =============================================================================
 
+- **"Progress Notes" sub-folder inside "Progress Notes"** - This is the Nurse notes folder! IGNORE IT unless absolutely nothing else is available
 - "23 Hour History and Physical Update Note" - brief update, not full H&P
-- "Nurse Progress Note" - prefer Physician notes
+- "Nurse Progress Note" or any note with "Nurse" in the name - prefer Physician notes
+- "Progress Note Nurse" - SKIP, look for "Progress Note" without "Nurse" suffix
 - "Consultation Note" - ONLY accept if priorities 1-4 have no documents
 - Documents with no visible clinical content
 

@@ -130,8 +130,8 @@ def scroll_tree_up(clicks: int = 3) -> str:
             screen_w, screen_h = pyautogui.size()
             center = (int(screen_w * 0.30), int(screen_h * 0.50))
 
-        # Move cursor to center WITHOUT clicking (avoid unintended clicks)
-        pyautogui.moveTo(center[0], center[1])
+        # Click on center to ensure scroll focus is on the tree (not just moveTo)
+        pyautogui.click(center[0], center[1])
         pyautogui.sleep(0.2)
 
         # Perform multiple individual scrolls (fixed 400 per scroll)
@@ -168,8 +168,8 @@ def scroll_tree_down(clicks: int = 3) -> str:
             screen_w, screen_h = pyautogui.size()
             center = (int(screen_w * 0.30), int(screen_h * 0.50))
 
-        # Move cursor to center WITHOUT clicking (avoid unintended clicks)
-        pyautogui.moveTo(center[0], center[1])
+        # Click on center to ensure scroll focus is on the tree (not just moveTo)
+        pyautogui.click(center[0], center[1])
         pyautogui.sleep(0.2)
 
         # Perform multiple individual scrolls (fixed 400 per scroll)

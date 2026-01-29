@@ -465,6 +465,97 @@ class BaseFlow(RPABotBase, ABC):
                 f"[{self.EMR_TYPE.upper()}] Error clicking normalscreen: {e}"
             )
 
+    def _wait_for_patient_list_with_patience(
+        self,
+        patient_list_header_img: str,
+        max_attempts: int = 3,
+        attempt_timeout: int = 10,
+        max_alt_f4_retries: int = 1,
+    ) -> bool:
+        """
+        Wait patiently for Patient List Header to appear.
+        Uses multiple short attempts with center clicks to wake up frozen systems.
+
+        Hybrid approach:
+        1. First try: Wait patiently (3 attempts × 10s with center clicks)
+        2. If still not found: Send Alt+F4 rescue and wait again (3 more attempts)
+        3. Max 1 Alt+F4 retry to prevent race conditions
+
+        Args:
+            patient_list_header_img: Path to the header image for detection
+            max_attempts: Number of 10-second attempts per cycle (default: 3 = 30s)
+            attempt_timeout: Timeout per attempt in seconds (default: 10)
+            max_alt_f4_retries: Maximum Alt+F4 retries after patience exhausted (default: 1)
+
+        Returns:
+            True if Patient List Header was detected, False otherwise
+        """
+        screen_w, screen_h = pyautogui.size()
+
+        for alt_f4_cycle in range(
+            max_alt_f4_retries + 1
+        ):  # 0 = initial, 1 = after retry
+            cycle_name = (
+                "initial" if alt_f4_cycle == 0 else f"after Alt+F4 retry {alt_f4_cycle}"
+            )
+
+            for attempt in range(max_attempts):
+                attempt_num = attempt + 1
+                logger.info(
+                    f"[{self.EMR_TYPE.upper()}] Waiting for Patient List Header "
+                    f"({cycle_name}, attempt {attempt_num}/{max_attempts}, {attempt_timeout}s)..."
+                )
+
+                # Click center to wake up system (Citrix/VDI can freeze)
+                pyautogui.click(screen_w // 2, screen_h // 2)
+                stoppable_sleep(0.5)
+
+                # Try to detect header
+                header_found = self.wait_for_element(
+                    patient_list_header_img,
+                    timeout=attempt_timeout,
+                    description=f"Patient List Header ({cycle_name}, attempt {attempt_num}/{max_attempts})",
+                )
+
+                if header_found:
+                    logger.info(
+                        f"[{self.EMR_TYPE.upper()}] Patient List Header detected ({cycle_name}, attempt {attempt_num})"
+                    )
+                    return True
+                else:
+                    logger.warning(
+                        f"[{self.EMR_TYPE.upper()}] Patient List Header NOT detected ({cycle_name}, attempt {attempt_num})"
+                    )
+
+            # All patience attempts exhausted for this cycle
+            if alt_f4_cycle < max_alt_f4_retries:
+                # Send rescue Alt+F4 and try again
+                logger.warning(
+                    f"[{self.EMR_TYPE.upper()}] Patience exhausted - sending rescue Alt+F4..."
+                )
+                pyautogui.click(screen_w // 2, screen_h // 2)
+                stoppable_sleep(0.5)
+
+                pydirectinput.keyDown("alt")
+                stoppable_sleep(0.1)
+                pydirectinput.press("f4")
+                stoppable_sleep(0.1)
+                pydirectinput.keyUp("alt")
+
+                # Wait for system to process close
+                logger.info(
+                    f"[{self.EMR_TYPE.upper()}] Waiting 5s for system to process close..."
+                )
+                stoppable_sleep(5)
+            else:
+                # All retries exhausted
+                logger.error(
+                    f"[{self.EMR_TYPE.upper()}] Patient List Header NOT detected after "
+                    f"{max_alt_f4_retries + 1} cycles. Giving up."
+                )
+
+        return False
+
     def _get_rois(self, agent_name: str = "patient_finder"):
         """
         Load ROI regions for the given agent from config.

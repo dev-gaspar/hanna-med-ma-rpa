@@ -43,6 +43,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
 
     FLOW_NAME = "Jackson Batch Summary"
     FLOW_TYPE = "jackson_batch_summary"
+    EMR_TYPE = "jackson"  # Required for BaseFlow fullscreen methods
 
     def __init__(self):
         super().__init__()
@@ -226,39 +227,7 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
             logger.error(f"[JACKSON-BATCH] Navigation failed: {e}")
             return False
 
-    def _click_fullscreen(self):
-        """Click fullscreen button for better visualization during agentic phase."""
-        self.set_step("CLICK_FULLSCREEN")
-        fullscreen_img = config.get_rpa_setting("images.jackson_fullscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[JACKSON-BATCH] Clicked fullscreen button")
-                stoppable_sleep(2)
-            else:
-                logger.warning(
-                    "[JACKSON-BATCH] Fullscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[JACKSON-BATCH] Error clicking fullscreen: {e}")
-
-    def _click_normalscreen(self):
-        """Click normalscreen button to restore view before cleanup."""
-        self.set_step("CLICK_NORMALSCREEN")
-        normalscreen_img = config.get_rpa_setting("images.jackson_normalscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[JACKSON-BATCH] Clicked normalscreen button")
-                stoppable_sleep(2)
-            else:
-                logger.warning(
-                    "[JACKSON-BATCH] Normalscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[JACKSON-BATCH] Error clicking normalscreen: {e}")
+    # _click_fullscreen and _click_normalscreen inherited from BaseFlow (uses EMR_TYPE)
 
     def find_patient(self, patient_name: str) -> bool:
         """
@@ -377,8 +346,8 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         """
         Close current patient detail and return to patient list.
         Uses Alt+F4 to close the patient detail view.
-        Uses visual validation to confirm we're back at the patient list.
-        Includes fallback: if report document is still visible, retry Alt+F4.
+        Uses conservative wait (3x10s with center clicks) to confirm we're back.
+        Does NOT retry Alt+F4 to avoid race conditions.
         """
         self.set_step("RETURN_TO_PATIENT_LIST")
         logger.info("[JACKSON-BATCH] Returning to patient list...")
@@ -397,81 +366,29 @@ class JacksonBatchSummaryFlow(BaseBatchSummaryFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait for patient list header to be visible (visual validation)
-        logger.info("[JACKSON-BATCH] Waiting for patient list header (max 30s)...")
+        # Wait 5 seconds for the system to process the close
+        logger.info("[JACKSON-BATCH] Waiting 5s for system to process close...")
+        stoppable_sleep(5)
 
         patient_list_header_img = config.get_rpa_setting(
             "images.jackson_patient_list_header"
         )
-        report_document_img = config.get_rpa_setting("images.jackson_report_document")
 
-        header_found = self.wait_for_element(
+        # Use patient wait with multiple attempts (NO additional Alt+F4)
+        header_found = self._wait_for_patient_list_with_patience(
             patient_list_header_img,
-            timeout=30,
-            description="Patient List Header",
+            max_attempts=3,
+            attempt_timeout=10,
         )
 
         if header_found:
-            logger.info("[JACKSON-BATCH] OK - Patient list header detected")
+            logger.info("[JACKSON-BATCH] OK - Patient list confirmed")
         else:
-            # Fallback: if header not found, check if report document is still visible
+            # Log warning but do NOT send another Alt+F4
             logger.warning(
-                "[JACKSON-BATCH] FAIL - Patient list header NOT detected after 30s"
+                "[JACKSON-BATCH] Patient list header not detected after patience wait. "
+                "Continuing anyway to avoid race condition."
             )
-            logger.info(
-                "[JACKSON-BATCH] Checking if report document is still visible..."
-            )
-
-            # Check if report document is still visible (patient detail still open)
-            try:
-                report_visible = pyautogui.locateOnScreen(
-                    report_document_img, confidence=0.8
-                )
-            except Exception:
-                report_visible = None
-
-            if report_visible:
-                logger.warning(
-                    "[JACKSON-BATCH] Report document still visible - patient detail NOT closed"
-                )
-                logger.info(
-                    "[JACKSON-BATCH] Retrying - clicking center to ensure focus..."
-                )
-
-                # Click center to ensure focus
-                pyautogui.click(screen_w // 2, screen_h // 2)
-                stoppable_sleep(0.5)
-
-                # Retry Alt+F4
-                logger.info("[JACKSON-BATCH] Sending Alt+F4 again...")
-                pydirectinput.keyDown("alt")
-                stoppable_sleep(0.1)
-                pydirectinput.press("f4")
-                stoppable_sleep(0.1)
-                pydirectinput.keyUp("alt")
-
-                # Wait for patient list header again
-                logger.info(
-                    "[JACKSON-BATCH] Waiting for patient list header after retry (max 30s)..."
-                )
-                header_found = self.wait_for_element(
-                    patient_list_header_img,
-                    timeout=30,
-                    description="Patient List Header (retry)",
-                )
-
-                if header_found:
-                    logger.info(
-                        "[JACKSON-BATCH] OK - Patient list header detected after retry"
-                    )
-                else:
-                    logger.error(
-                        "[JACKSON-BATCH] FAIL - Patient list header still NOT detected after retry"
-                    )
-            else:
-                logger.info(
-                    "[JACKSON-BATCH] Report document not visible - assuming we're at patient list"
-                )
 
         self._patient_detail_open = False
         logger.info("[JACKSON-BATCH] Back at patient list")

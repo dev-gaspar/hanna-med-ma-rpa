@@ -77,10 +77,12 @@ CONSULTATION NOTES PRIORITY: Within "Consultation Notes" folder:
 - If NO specialty sub-folder found → CLOSE Consultation Notes and move to Progress Notes
 
 PROGRESS NOTES PRIORITY: Within "Progress Notes" folder:
+- CRITICAL: If you see a sub-folder ALSO named "Progress Notes" inside the parent "Progress Notes" folder, IGNORE IT COMPLETELY - this is the Nurse notes folder and should ONLY be explored as an ABSOLUTE LAST RESORT after exhausting ALL other options
 - FIRST: Look for sub-folder matching doctor's specialty (e.g., "Podiatry", "Critical Care")
 - If specialty sub-folder exists → explore it for relevant notes
-- If NO specialty sub-folder → accept "Physician Progress Note" (skip Nurse notes)
+- SECOND: Look for "Physician Progress Note" documents (skip anything with "Nurse" in the name)
 - ONLY accept generic notes if no specialty-specific content is available
+- ABSOLUTE LAST RESORT: Only check the "Progress Notes" sub-folder (Nurse notes) if you have exhausted ALL other folders and found nothing
 
 === SPECIALTY SUB-FOLDER SEARCH STRATEGY ===
 
@@ -136,10 +138,12 @@ STEP BY STEP:
 CRITICAL: If you want to reach a document in a DIFFERENT sub-folder, DON'T use nav_down
 to jump across sub-folders. Instead, CLICK on that sub-folder first, then navigate within it.
 
-=== DOCUMENTS TO ALWAYS SKIP (unless all priorities exhausted) ===
+=== DOCUMENTS AND FOLDERS TO ALWAYS SKIP (unless all priorities exhausted) ===
 
+- **"Progress Notes" sub-folder inside "Progress Notes"** - This is the Nurse notes folder! IGNORE IT unless absolutely nothing else is available
 - "23 Hour History and Physical Update Note" - brief update, not full H&P
-- "Nurse Progress Note" - prefer "Physician Progress Note" instead
+- "Nurse Progress Note" or any note with "Nurse" in the name - prefer "Physician Progress Note" instead
+- "Progress Note Nurse" - SKIP, look for "Progress Note" without "Nurse" suffix
 - "Consultation Note" or "Consult Note" - ONLY accept as Priority 5 (last resort)
 - Documents with no visible content in right pane
 - Administrative or non-clinical documents

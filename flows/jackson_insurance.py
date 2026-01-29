@@ -431,46 +431,25 @@ class JacksonInsuranceFlow(BaseFlow):
             stoppable_sleep(0.1)
             pydirectinput.keyUp("alt")
 
-            # Wait for patient list header to be visible (visual validation)
-            logger.info(
-                "[JACKSON INSURANCE] Waiting for patient list header (max 15s)..."
-            )
-            header_found = self.wait_for_element(
+            # Wait 5 seconds for the system to process the close
+            logger.info("[JACKSON INSURANCE] Waiting 5s for system to process close...")
+            stoppable_sleep(5)
+
+            # Use patient wait with multiple attempts (NO additional Alt+F4)
+            header_found = self._wait_for_patient_list_with_patience(
                 patient_list_header_img,
-                timeout=15,
-                description="Patient List Header",
+                max_attempts=3,
+                attempt_timeout=10,
             )
 
             if header_found:
-                logger.info("[JACKSON INSURANCE] OK - Patient list header detected")
+                logger.info("[JACKSON INSURANCE] OK - Patient list confirmed")
             else:
+                # Log warning but do NOT send another Alt+F4
                 logger.warning(
-                    "[JACKSON INSURANCE] FAIL - Patient list header NOT detected after 15s"
+                    "[JACKSON INSURANCE] Patient list header not detected after patience wait. "
+                    "Continuing anyway to avoid race condition."
                 )
-                logger.info("[JACKSON INSURANCE] Retrying Alt+F4...")
-                # Click center to ensure focus
-                pyautogui.click(screen_w // 2, screen_h // 2)
-                stoppable_sleep(0.5)
-
-                # Retry Alt+F4
-                pydirectinput.keyDown("alt")
-                stoppable_sleep(0.1)
-                pydirectinput.press("f4")
-                stoppable_sleep(0.1)
-                pydirectinput.keyUp("alt")
-
-                # Wait for patient list header again
-                header_found = self.wait_for_element(
-                    patient_list_header_img,
-                    timeout=15,
-                    description="Patient List Header (retry)",
-                )
-                if header_found:
-                    logger.info(
-                        "[JACKSON INSURANCE] OK - Patient list header detected after retry"
-                    )
-                else:
-                    logger.warning("[JACKSON INSURANCE] FAIL - Continuing anyway...")
 
             # Click on screen center to focus the patient list window
             pyautogui.click(screen_w // 2, screen_h // 2)
