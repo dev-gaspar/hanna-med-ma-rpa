@@ -276,6 +276,10 @@ class BaptistFlow(BaseFlow):
                 "Login page",
                 self._handler_edge_login,
             ),
+            config.get_rpa_setting("images.baptist_maximize_button"): (
+                "Maximize button",
+                self._handler_maximize_window,
+            ),
         }
 
         menu_icon = self.robust_wait_for_element(
@@ -297,6 +301,13 @@ class BaptistFlow(BaseFlow):
 
         logger.info("[STEP 3] Pineapple Connect loaded")
         return True
+
+    def _handler_maximize_window(self, location):
+        """Click on maximize button to expand window. Non-invasive - continues search after click."""
+        logger.info("[HANDLER] Found maximize button - clicking to expand window")
+        pyautogui.click(pyautogui.center(location))
+        stoppable_sleep(1)
+        logger.info("[HANDLER] Window maximized")
 
     def step_4_open_menu(self):
         """Open 3-dots menu with retry logic for stability."""
