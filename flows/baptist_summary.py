@@ -42,6 +42,7 @@ class BaptistSummaryFlow(BaseFlow):
 
     FLOW_NAME = "Baptist Patient Summary"
     FLOW_TYPE = "baptist_patient_summary"
+    EMR_TYPE = "baptist"  # Required for BaseFlow fullscreen methods
 
     # PDF output path on desktop
     PDF_FILENAME = "baptis report.pdf"
@@ -184,37 +185,7 @@ class BaptistSummaryFlow(BaseFlow):
             "patient_found": True,
         }
 
-    def _click_fullscreen(self):
-        """Click fullscreen button for better visualization during agentic phase."""
-        fullscreen_img = config.get_rpa_setting("images.baptist_fullscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[BAPTIST SUMMARY] Clicked fullscreen button")
-                stoppable_sleep(1)
-            else:
-                logger.warning(
-                    "[BAPTIST SUMMARY] Fullscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[BAPTIST SUMMARY] Error clicking fullscreen: {e}")
-
-    def _click_normalscreen(self):
-        """Click normalscreen button to restore view after agentic phase."""
-        normalscreen_img = config.get_rpa_setting("images.baptist_normalscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[BAPTIST SUMMARY] Clicked normalscreen button")
-                stoppable_sleep(1)
-            else:
-                logger.warning(
-                    "[BAPTIST SUMMARY] Normalscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[BAPTIST SUMMARY] Error clicking normalscreen: {e}")
+    # _click_fullscreen and _click_normalscreen inherited from BaseFlow (uses EMR_TYPE)
 
     def _phase1_navigate_to_patient_list(self):
         """

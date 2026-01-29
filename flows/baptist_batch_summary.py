@@ -35,6 +35,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
 
     FLOW_NAME = "Baptist Batch Summary"
     FLOW_TYPE = "baptist_batch_summary"
+    EMR_TYPE = "baptist"  # Required for BaseFlow fullscreen methods
 
     PDF_FILENAME = "baptis report.pdf"
 
@@ -186,39 +187,7 @@ class BaptistBatchSummaryFlow(BaseBatchSummaryFlow):
             "found_count": sum(1 for r in self.results if r.get("found")),
         }
 
-    def _click_fullscreen(self):
-        """Click fullscreen button for better visualization during agentic phase."""
-        self.set_step("CLICK_FULLSCREEN")
-        fullscreen_img = config.get_rpa_setting("images.baptist_fullscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(fullscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[BAPTIST-BATCH] Clicked fullscreen button")
-                stoppable_sleep(2)
-            else:
-                logger.warning(
-                    "[BAPTIST-BATCH] Fullscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[BAPTIST-BATCH] Error clicking fullscreen: {e}")
-
-    def _click_normalscreen(self):
-        """Click normalscreen button to restore view before cleanup."""
-        self.set_step("CLICK_NORMALSCREEN")
-        normalscreen_img = config.get_rpa_setting("images.baptist_normalscreen_btn")
-        try:
-            location = pyautogui.locateOnScreen(normalscreen_img, confidence=0.8)
-            if location:
-                pyautogui.click(pyautogui.center(location))
-                logger.info("[BAPTIST-BATCH] Clicked normalscreen button")
-                stoppable_sleep(2)
-            else:
-                logger.warning(
-                    "[BAPTIST-BATCH] Normalscreen button not found - continuing"
-                )
-        except Exception as e:
-            logger.warning(f"[BAPTIST-BATCH] Error clicking normalscreen: {e}")
+    # _click_fullscreen and _click_normalscreen inherited from BaseFlow (uses EMR_TYPE)
 
     def navigate_to_patient_list(self) -> bool:
         """
