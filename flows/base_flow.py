@@ -380,6 +380,10 @@ class BaseFlow(RPABotBase, ABC):
                     logger.info(
                         f"[{self.EMR_TYPE.upper()}] Clicked fullscreen button (attempt {attempt + 1})"
                     )
+
+                    # Move mouse to screen center to avoid hover interference
+                    screen_w, screen_h = pyautogui.size()
+                    pyautogui.moveTo(screen_w // 2, screen_h // 2)
                     stoppable_sleep(2)  # Wait for UI to transition
 
                     # Verify fullscreen by checking if normalscreen button is now visible
@@ -447,6 +451,10 @@ class BaseFlow(RPABotBase, ABC):
             if location:
                 pyautogui.click(pyautogui.center(location))
                 logger.info(f"[{self.EMR_TYPE.upper()}] Clicked normalscreen button")
+
+                # Move mouse to screen center to avoid hover interference
+                screen_w, screen_h = pyautogui.size()
+                pyautogui.moveTo(screen_w // 2, screen_h // 2)
                 stoppable_sleep(1)
             else:
                 logger.warning(
