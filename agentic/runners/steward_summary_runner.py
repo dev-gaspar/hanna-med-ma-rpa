@@ -606,6 +606,11 @@ class StewardSummaryRunner:
             self.rpa.safe_click(location, "Chart tab")
             self._record_step("rpa", "click_chart", "Clicked Chart tab")
             logger.info("[RUNNER] Chart tab clicked")
+
+            # Center mouse to ensure no hover interference
+            screen_w, screen_h = pyautogui.size()
+            pyautogui.moveTo(screen_w // 2, screen_h // 2)
+            logger.info("[RUNNER] Mouse centered")
         else:
             raise Exception("Chart tab not found on screen")
 
