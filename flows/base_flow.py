@@ -543,10 +543,11 @@ class BaseFlow(RPABotBase, ABC):
                 pydirectinput.keyUp("alt")
 
                 # Wait for system to process close
+                # PowerChart can freeze during close - longer wait prevents Alt+F4 accumulation
                 logger.info(
-                    f"[{self.EMR_TYPE.upper()}] Waiting 5s for system to process close..."
+                    f"[{self.EMR_TYPE.upper()}] Waiting 15s for system to process close..."
                 )
-                stoppable_sleep(5)
+                stoppable_sleep(15)
             else:
                 # All retries exhausted
                 logger.error(

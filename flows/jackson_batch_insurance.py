@@ -395,7 +395,8 @@ class JacksonBatchInsuranceFlow(BaseFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        stoppable_sleep(5)
+        # PowerChart can freeze during close - longer wait prevents Alt+F4 accumulation
+        stoppable_sleep(15)
         self._patient_detail_open = False
         logger.info("[JACKSON-BATCH-INS] Patient detail closed")
 
@@ -422,9 +423,10 @@ class JacksonBatchInsuranceFlow(BaseFlow):
         stoppable_sleep(0.1)
         pydirectinput.keyUp("alt")
 
-        # Wait 5 seconds for the system to process the close
-        logger.info("[JACKSON-BATCH-INS] Waiting 5s for system to process close...")
-        stoppable_sleep(5)
+        # Wait 15 seconds for the system to process the close
+        # PowerChart can freeze during close - longer wait prevents Alt+F4 accumulation
+        logger.info("[JACKSON-BATCH-INS] Waiting 15s for system to process close...")
+        stoppable_sleep(15)
 
         patient_list_header_img = config.get_rpa_setting(
             "images.jackson_patient_list_header"
@@ -434,7 +436,7 @@ class JacksonBatchInsuranceFlow(BaseFlow):
         header_found = self._wait_for_patient_list_with_patience(
             patient_list_header_img,
             max_attempts=3,
-            attempt_timeout=10,
+            attempt_timeout=15,
         )
 
         if header_found:
