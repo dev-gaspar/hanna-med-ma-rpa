@@ -280,6 +280,17 @@ class JacksonInsuranceFlow(BaseFlow):
             confidence=0.8,
             description="More button",
         )
+        # Fallback: try alternate image (normal mode vs fullscreen renders differently)
+        if not location:
+            more_alt_img = config.get_rpa_setting("images.jackson_more_alt")
+            if more_alt_img:
+                logger.info("[PHASE 3] Trying alternate 'More' button image...")
+                location = self.wait_for_element(
+                    more_alt_img,
+                    timeout=10,
+                    confidence=0.8,
+                    description="More button (alt)",
+                )
         if not location:
             raise Exception("More button not found")
         self.safe_click(location, "More button")
@@ -296,6 +307,21 @@ class JacksonInsuranceFlow(BaseFlow):
             confidence=0.8,
             description="Insurance Information",
         )
+        # Fallback: try alternate image (normal mode vs fullscreen)
+        if not location:
+            ins_alt_img = config.get_rpa_setting(
+                "images.jackson_insurance_information_alt"
+            )
+            if ins_alt_img:
+                logger.info(
+                    "[PHASE 3] Trying alternate 'Insurance Information' image..."
+                )
+                location = self.wait_for_element(
+                    ins_alt_img,
+                    timeout=10,
+                    confidence=0.8,
+                    description="Insurance Information (alt)",
+                )
         if not location:
             raise Exception("Insurance Information not found")
         self.safe_click(location, "Insurance Information")
@@ -310,6 +336,19 @@ class JacksonInsuranceFlow(BaseFlow):
             confidence=0.8,
             description="Guarantors tab",
         )
+        # Fallback: try alternate image (normal mode vs fullscreen)
+        if not location:
+            guar_alt_img = config.get_rpa_setting(
+                "images.jackson_insurance_guarantors_alt"
+            )
+            if guar_alt_img:
+                logger.info("[PHASE 3] Trying alternate 'Guarantors' image...")
+                location = self.wait_for_element(
+                    guar_alt_img,
+                    timeout=10,
+                    confidence=0.8,
+                    description="Guarantors tab (alt)",
+                )
         if not location:
             raise Exception("Guarantors tab not found")
 
