@@ -384,12 +384,44 @@ class StewardFlow(BaseFlow):
         else:
             logger.info("[SIGN LIST] No Warning modal detected - continuing")
 
+    def _handle_sign_list_modal_no(self, location):
+        """Handler for the 'Items to be signed' Yes/No modal.
+
+        This modal appears once a day asking if you want to review and sign items.
+        Click 'No' to skip and stay on the patient list.
+        """
+        logger.info(
+            "[SIGN LIST] 'Items to be signed' modal detected - clicking 'No'..."
+        )
+
+        no_btn = self.wait_for_element(
+            config.get_rpa_setting("images.steward_sign_list_no_btn"),
+            timeout=5,
+            description="Sign List 'No' Button",
+        )
+
+        if no_btn:
+            self.safe_click(no_btn, "Sign List No")
+            stoppable_sleep(2)
+            logger.info(
+                "[SIGN LIST] Clicked 'No' - modal dismissed, staying on patient list"
+            )
+        else:
+            logger.warning("[SIGN LIST] 'No' button not found on modal")
+
     def _get_sign_list_handlers(self):
         """Get handlers for Sign List popup obstacle.
 
-        Includes both Sign List image variants to maximize detection.
+        Includes:
+        - steward_sign_list_no_btn: The Yes/No modal → click 'No'
+        - steward_sign_list: The Sign List page → close + leave now
+        - steward_sign_list_obstacle: The Sign List page (alt) → close + leave now
         """
         return {
+            config.get_rpa_setting("images.steward_sign_list_no_btn"): (
+                "Sign List Modal (Yes/No)",
+                self._handle_sign_list_modal_no,
+            ),
             config.get_rpa_setting("images.steward_sign_list"): (
                 "Sign List Popup",
                 self._handle_sign_list_popup,
